@@ -44,7 +44,8 @@
     <span data-lang="kz">KZ</span>
     <span data-lang="en">EN</span>
   </div>
-  <button class="login">Войти через Telegram</button>
+  <button class="login" id="loginBtn">Войти через Telegram</button>
+  <button class="subscribe hidden" id="subscribeBtn">Подписка</button>
 </header>
 
 <div class="layout">
@@ -72,6 +73,11 @@
         <span data-type="ip">IP</span>
         <span data-type="nick">Ник</span>
         <span data-type="phone">Номер</span>
+      </div>
+
+      <div class="type-description" id="typeDescription">
+        <h3>Домен</h3>
+        <p>Введи домен — получишь WHOIS, DNS-записи, поддомены из Certificate Transparency и данные ASN.</p>
       </div>
 
       <div class="card">
@@ -132,7 +138,7 @@
     <div class="section" id="profile">
       <div class="profile-row">
         <span class="label">Telegram</span>
-        <span class="value">не подключён</span>
+        <span class="value" id="profileTelegram">не подключён</span>
       </div>
       <div class="profile-row">
         <span class="label">Язык</span>
@@ -140,11 +146,11 @@
       </div>
       <div class="profile-row">
         <span class="label">Подписка</span>
-        <span class="value">нет</span>
+        <span class="value" id="profileSub">нет</span>
       </div>
       <div class="profile-row">
         <span class="label">Промокод</span>
-        <span class="value">—</span>
+        <span class="value" id="profilePromo">—</span>
       </div>
     </div>
 
@@ -157,7 +163,53 @@
 
 </div>
 
+<!-- МОДАЛКА ПОДПИСКИ -->
+<div class="modal-overlay hidden" id="subModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Добро пожаловать в раздел Подписка</h2>
+      <button class="modal-close" id="closeSubModal">✕</button>
+    </div>
+
+    <div class="plans">
+      <div class="plan" data-plan="1d" data-price="15">
+        <div class="plan-name">1 день</div>
+        <div class="plan-price">15 ⭐</div>
+        <button class="plan-buy">Купить</button>
+      </div>
+      <div class="plan" data-plan="3d" data-price="25">
+        <div class="plan-name">3 дня</div>
+        <div class="plan-price">25 ⭐</div>
+        <button class="plan-buy">Купить</button>
+      </div>
+      <div class="plan" data-plan="7d" data-price="50">
+        <div class="plan-name">7 дней</div>
+        <div class="plan-price">50 ⭐</div>
+        <button class="plan-buy">Купить</button>
+      </div>
+      <div class="plan" data-plan="30d" data-price="100">
+        <div class="plan-name">30 дней</div>
+        <div class="plan-price">100 ⭐</div>
+        <button class="plan-buy">Купить</button>
+      </div>
+      <div class="plan plan-forever" data-plan="forever" data-price="200">
+        <div class="plan-name">Навсегда</div>
+        <div class="plan-price">200 ⭐</div>
+        <button class="plan-buy">Купить</button>
+      </div>
+    </div>
+
+    <div class="promo-block">
+      <button class="promo-toggle" id="promoToggle">У меня есть промокод</button>
+      <div class="promo-input hidden" id="promoInput">
+        <input type="text" placeholder="Введи промокод...">
+        <button id="promoApply">Применить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="script.js"></script>
 
 </body>
-</html>
+  </html>
