@@ -4,223 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>paytina-catalog</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: #050608;
-    color: #E8EAED;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    height: 100vh;
-    overflow: hidden;
-    position: relative;
-  }
-
-  /* Паутина на фоне */
-  .web-bg {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 0;
-    opacity: 0.35;
-    pointer-events: none;
-  }
-
-  header, .layout { position: relative; z-index: 1; }
-
-  /* Шапка */
-  header {
-    height: 64px;
-    background: rgba(10, 12, 16, 0.85);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid #1A2028;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-  }
-
-  .logo {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: #3B82F6;
-    text-shadow:
-      0 0 8px rgba(59, 130, 246, 0.6),
-      0 0 20px rgba(59, 130, 246, 0.4),
-      0 0 40px rgba(59, 130, 246, 0.2),
-      0 2px 0 #1E40AF,
-      0 4px 8px rgba(0, 0, 0, 0.8);
-  }
-
-  .lang { display: flex; gap: 6px; }
-
-  .lang span {
-    font-size: 12px;
-    color: #6B7280;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-  }
-
-  .lang span.active {
-    color: #3B82F6;
-    background: rgba(59, 130, 246, 0.1);
-  }
-
-  .login {
-    font-size: 13px;
-    color: #E8EAED;
-    background: #10141A;
-    border: 1px solid #1A2028;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .login:hover { border-color: #3B82F6; color: #3B82F6; }
-
-  /* Сетка */
-  .layout {
-    display: grid;
-    grid-template-columns: 220px 1fr 320px;
-    height: calc(100vh - 64px);
-  }
-
-  /* Меню */
-  nav {
-    background: rgba(10, 12, 16, 0.85);
-    backdrop-filter: blur(10px);
-    border-right: 1px solid #1A2028;
-    padding: 16px 8px;
-  }
-
-  .nav-item {
-    display: block;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #6B7280;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-bottom: 2px;
-  }
-
-  .nav-item:hover { background: #10141A; color: #E8EAED; }
-
-  .nav-item.active {
-    background: rgba(59, 130, 246, 0.12);
-    color: #3B82F6;
-  }
-
-  /* Центр */
-  main {
-    padding: 28px;
-    overflow-y: auto;
-  }
-
-  .search-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .search-bar input {
-    flex: 1;
-    background: #0A0D12;
-    border: 1px solid #1A2028;
-    color: #E8EAED;
-    padding: 14px 18px;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-  }
-
-  .search-bar input:focus { border-color: #3B82F6; }
-
-  .search-bar button {
-    background: #3B82F6;
-    color: white;
-    border: none;
-    padding: 0 28px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .search-bar button:hover { background: #2563EB; }
-
-  .types {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-  }
-
-  .types span {
-    font-size: 13px;
-    color: #6B7280;
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid #1A2028;
-    cursor: pointer;
-  }
-
-  .types span.active {
-    color: #3B82F6;
-    border-color: #3B82F6;
-    background: rgba(59, 130, 246, 0.08);
-  }
-
-  .card {
-    background: rgba(16, 20, 26, 0.8);
-    backdrop-filter: blur(8px);
-    border: 1px solid #1A2028;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-
-  .card h3 {
-    font-size: 13px;
-    color: #3B82F6;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-
-  .card p {
-    font-size: 13px;
-    color: #6B7280;
-    line-height: 1.6;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* Правая панель */
-  aside {
-    background: rgba(10, 12, 16, 0.85);
-    backdrop-filter: blur(10px);
-    border-left: 1px solid #1A2028;
-    padding: 28px;
-  }
-
-  aside h3 {
-    font-size: 12px;
-    color: #6B7280;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 12px;
-  }
-
-  .empty {
-    font-size: 13px;
-    color: #6B7280;
-    line-height: 1.6;
-  }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Паутина на фоне -->
 <svg class="web-bg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
   <defs>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
@@ -229,9 +16,7 @@
     </radialGradient>
   </defs>
   <circle cx="500" cy="500" r="500" fill="url(#glow)"/>
-
   <g stroke="#3B82F6" stroke-width="0.8" fill="none" opacity="0.6">
-    <!-- Радиальные нити -->
     <line x1="500" y1="500" x2="500" y2="50"/>
     <line x1="500" y1="500" x2="500" y2="950"/>
     <line x1="500" y1="500" x2="50" y2="500"/>
@@ -244,8 +29,6 @@
     <line x1="500" y1="500" x2="850" y2="350"/>
     <line x1="500" y1="500" x2="150" y2="650"/>
     <line x1="500" y1="500" x2="850" y2="650"/>
-
-    <!-- Кольца паутины -->
     <polygon points="500,380 620,440 620,560 500,620 380,560 380,440"/>
     <polygon points="500,280 700,390 700,610 500,720 300,610 300,390"/>
     <polygon points="500,180 780,340 780,660 500,820 220,660 220,340"/>
@@ -255,53 +38,116 @@
 
 <header>
   <div class="logo">paytina-catalog</div>
-  <div class="lang">
-    <span class="active">RU</span>
-    <span>UK</span>
-    <span>KZ</span>
-    <span>EN</span>
+  <div class="lang" id="lang">
+    <span class="active" data-lang="ru">RU</span>
+    <span data-lang="uk">UK</span>
+    <span data-lang="kz">KZ</span>
+    <span data-lang="en">EN</span>
   </div>
   <button class="login">Войти через Telegram</button>
 </header>
 
 <div class="layout">
 
-  <nav>
-    <div class="nav-item active">Поиск</div>
-    <div class="nav-item">ИИ-поиск</div>
-    <div class="nav-item">Граф связей</div>
-    <div class="nav-item">Каталог</div>
-    <div class="nav-item">Профиль</div>
+  <nav id="nav">
+    <div class="nav-item active" data-section="search">Поиск</div>
+    <div class="nav-item" data-section="ai">ИИ-поиск</div>
+    <div class="nav-item" data-section="graph">Граф связей</div>
+    <div class="nav-item" data-section="catalog">Каталог</div>
+    <div class="nav-item" data-section="profile">Профиль</div>
   </nav>
 
   <main>
-    <div class="search-bar">
-      <input type="text" placeholder="Домен, email, IP, ник или номер телефона...">
-      <button>Искать</button>
+
+    <!-- ПОИСК -->
+    <div class="section active" id="search">
+      <div class="search-bar">
+        <input type="text" placeholder="Домен, email, IP, ник или номер телефона...">
+        <button>Искать</button>
+      </div>
+
+      <div class="types" id="types">
+        <span class="active" data-type="domain">Домен</span>
+        <span data-type="email">Email</span>
+        <span data-type="ip">IP</span>
+        <span data-type="nick">Ник</span>
+        <span data-type="phone">Номер</span>
+      </div>
+
+      <div class="card">
+        <h3>WHOIS</h3>
+        <p>Здесь появятся данные о регистрации домена</p>
+      </div>
+
+      <div class="card">
+        <h3>DNS</h3>
+        <p>A, AAAA, MX, NS, TXT — записи домена</p>
+      </div>
+
+      <div class="card">
+        <h3>Certificate Transparency</h3>
+        <p>Поддомены из логов сертификатов</p>
+      </div>
     </div>
 
-    <div class="types">
-      <span class="active">Домен</span>
-      <span>Email</span>
-      <span>IP</span>
-      <span>Ник</span>
-      <span>Номер</span>
+    <!-- ИИ-ПОИСК -->
+    <div class="section" id="ai">
+      <div class="upload">
+        <div class="big">Перетащи файл или вставь текст</div>
+        <div class="small">Фото, IP, ссылка, ник, номер — ИИ разберёт всё</div>
+      </div>
+      <div class="search-bar">
+        <input type="text" placeholder="Или введи запрос вручную...">
+        <button>Анализировать</button>
+      </div>
+      <div class="card">
+        <h3>Отчёт ИИ</h3>
+        <p>Здесь появится всё, что ИИ нашёл в открытых источниках</p>
+      </div>
     </div>
 
-    <div class="card">
-      <h3>WHOIS</h3>
-      <p>Здесь появятся данные о регистрации домена</p>
+    <!-- ГРАФ -->
+    <div class="section" id="graph">
+      <div class="graph-placeholder">
+        Граф связей появится после первого поиска.<br>
+        Узлы: домен · IP · email · ник · номер
+      </div>
     </div>
 
-    <div class="card">
-      <h3>DNS</h3>
-      <p>A, AAAA, MX, NS, TXT — записи домена</p>
+    <!-- КАТАЛОГ -->
+    <div class="section" id="catalog">
+      <div class="catalog-grid">
+        <div class="tool"><div class="name">Shodan</div><div class="desc">Поиск устройств и портов</div></div>
+        <div class="tool"><div class="name">crt.sh</div><div class="desc">Certificate Transparency логи</div></div>
+        <div class="tool"><div class="name">HIBP</div><div class="desc">Проверка утечек email</div></div>
+        <div class="tool"><div class="name">VirusTotal</div><div class="desc">Репутация доменов и файлов</div></div>
+        <div class="tool"><div class="name">Censys</div><div class="desc">Сканирование интернета</div></div>
+        <div class="tool"><div class="name">urlscan.io</div><div class="desc">Анализ сайтов</div></div>
+        <div class="tool"><div class="name">Sherlock</div><div class="desc">Поиск по нику</div></div>
+        <div class="tool"><div class="name">Holehe</div><div class="desc">Проверка email на площадках</div></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3>Certificate Transparency</h3>
-      <p>Поддомены из логов сертификатов</p>
+    <!-- ПРОФИЛЬ -->
+    <div class="section" id="profile">
+      <div class="profile-row">
+        <span class="label">Telegram</span>
+        <span class="value">не подключён</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">Язык</span>
+        <span class="value">Русский</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">Подписка</span>
+        <span class="value">нет</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">Промокод</span>
+        <span class="value">—</span>
+      </div>
     </div>
+
   </main>
 
   <aside>
@@ -310,6 +156,8 @@
   </aside>
 
 </div>
+
+<script src="script.js"></script>
 
 </body>
 </html>
