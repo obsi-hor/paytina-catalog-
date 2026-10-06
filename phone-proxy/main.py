@@ -1,4 +1,3 @@
-import sys
 import io
 import importlib.util
 import contextlib
@@ -20,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Загружаем lookup-original.py вручную (имя с дефисом нельзя импортировать обычным import)
 spec = importlib.util.spec_from_file_location("lookup_original", "lookup-original.py")
 lookup_original = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lookup_original)
@@ -41,41 +39,47 @@ async def lookup_phone(request: PhoneRequest):
     captured_output = io.StringIO()
     error = None
 
-    try:
-        with contextlib.redirect_stdout(captured_output):
-            # Sync.ME
-            try:
-                lookup_original.Sync_Me().start_styncme(phone, more=True)
-            except Exception as e:
-                print(f"[Sync_ME error] {e}")
+    with contextlib.redirect_stdout(captured_output):
+        # ===== Sync.ME =====
+        try:
+            lookup_original.Sync_Me().start_styncme(phone, more=True)
+        except Exception as e:
+            print(f"[Sync_ME error] {e}")
 
-            # CallerID
-            try:
-                lookup_original.CallerID().start_callerid_check(phone, more=True)
-            except Exception as e:
-                print(f"[CallerID error] {e}")
+        # ===== CallerID =====
+        try:
+            lookup_original.CallerID().start_callerid_check(phone, more=True)
+        except Exception as e:
+            print(f"[CallerID error] {e}")
 
-            # CallApp
+        # ===== CallApp =====
+        try:
+            lookup_original.CallApp().send_request(phone, more=True)
+        except Exception as e:
             try:
-                lookup_original.CallApp().send_request(phone, more=True)
-            except Exception as e:
-                print(f"[CallApp error] {e}")
+                lookup_original.CallApp().send_request(phone)
+            except Exception as e2:
+                print(f"[CallApp error] {e2}")
 
-            # Eyecon
+        # ===== Eyecon =====
+        try:
+            lookup_original.Eyecon().send_request_pic(phone, more=True)
+            lookup_original.Eyecon().send_request_getname(phone, more=True)
+        except Exception:
             try:
                 lookup_original.Eyecon().send_request_pic(phone)
                 lookup_original.Eyecon().send_request_getname(phone)
-            except Exception as e:
-                print(f"[Eyecon error] {e}")
+            except Exception as e3:
+                print(f"[Eyecon error] {e3}")
 
-            # Truecaller
+        # ===== Truecaller =====
+        try:
+            lookup_original.Truecaller().send_request(phone, more=True)
+        except Exception as e:
             try:
-                lookup_original.Truecaller().send_request(phone, more=True)
-            except Exception as e:
-                print(f"[Truecaller error] {e}")
-
-    except Exception as e:
-        error = str(e)
+                lookup_original.Truecaller().send_request(phone)
+            except Exception as e2:
+                print(f"[Truecaller error] {e2}")
 
     raw = captured_output.getvalue()
 
