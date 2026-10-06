@@ -1,4 +1,4 @@
-// ---------- ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ ----------
+// ========== ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ ==========
 const navItems = document.querySelectorAll('#nav .nav-item');
 const sections = document.querySelectorAll('.section');
 
@@ -19,13 +19,11 @@ navItems.forEach(item => {
   });
 });
 
-// ---------- ОПИСАНИЯ ТИПОВ ----------
+// ========== ОПИСАНИЯ ТИПОВ ==========
 const typeDescriptions = {
-  domain: { title: 'Домен', text: 'Введи домен — получишь WHOIS, DNS-записи, поддомены из Certificate Transparency и данные ASN.' },
-  email:  { title: 'Email',  text: 'Введи email — проверим MX-записи, SPF/DKIM/DMARC, участие в утечках и связанные аккаунты.' },
-  ip:     { title: 'IP',     text: 'Введи IP — узнаешь геолокацию, ASN, открытые порты, баннеры сервисов и историю резолва.' },
-  nick:   { title: 'Ник',    text: 'Введи никнейм — найдём аккаунты на площадках, связанные профили и упоминания в открытых источниках.' },
-  phone:  { title: 'Номер',  text: 'Введи номер телефона — определим оператора, регион, мессенджеры и публичные упоминания.' }
+  domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency поддомены.' },
+  ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · проверка прокси/VPN/хостинга.' },
+  email:  { title: 'Email',  text: 'MX-записи домена · Gravatar профиль · проверка в утечках.' }
 };
 
 const types = document.querySelectorAll('#types span');
@@ -42,7 +40,7 @@ types.forEach(t => {
   });
 });
 
-// ---------- ЯЗЫК ----------
+// ========== ЯЗЫК ==========
 const langs = document.querySelectorAll('#lang span');
 const profileLang = document.getElementById('profileLang');
 const langNames = { ru: 'Русский', uk: 'Українська', kz: 'Қазақша', en: 'English' };
@@ -62,7 +60,7 @@ if (savedLang) {
   if (profileLang) profileLang.textContent = langNames[savedLang] || 'Русский';
 }
 
-// ---------- КАТАЛОГ ----------
+// ========== КАТАЛОГ ==========
 const tools = [
   { name: 'Shodan',       desc: 'Поиск устройств и открытых портов',            url: 'https://shodan.io',          tag: 'сеть' },
   { name: 'Censys',       desc: 'Сканирование интернета и хостов',              url: 'https://search.censys.io',   tag: 'сеть' },
@@ -93,7 +91,7 @@ if (grid) {
   });
 }
 
-// ---------- ИСТОРИЯ ----------
+// ========== ИСТОРИЯ ==========
 const historyList = document.getElementById('historyList');
 const profileScans = document.getElementById('profileScans');
 
@@ -110,7 +108,7 @@ function renderHistory() {
   if (!historyList) return;
 
   if (!h.length) {
-    historyList.innerHTML = '<div class="history-empty">Пока пусто. Сделай первый запрос.</div>';
+    historyList.innerHTML = '<div class="history-empty">Пока пусто.</div>';
     return;
   }
 
@@ -133,20 +131,6 @@ function addHistory(q) {
 
 renderHistory();
 
-// ---------- ПОИСК ----------
-const searchInput = document.querySelector('#search .search-bar input');
-const searchBtn = document.querySelector('#search .search-bar button');
-
-if (searchBtn) {
-  searchBtn.addEventListener('click', () => {
-    const val = searchInput.value.trim();
-    if (!val) return;
-    addHistory(val);
-    alert(`Запрос сохранён: ${val}\n\nРеальный поиск подключим позже.`);
-    searchInput.value = '';
-  });
-}
-
 const clearBtn = document.getElementById('clearHistory');
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
@@ -155,7 +139,7 @@ if (clearBtn) {
   });
 }
 
-// ---------- ГРАФ ----------
+// ========== ГРАФ ==========
 let cy = null;
 
 const COLORS = {
@@ -214,13 +198,11 @@ function initGraph() {
     wheelSensitivity: 0.2
   });
 
-  cy.on('tap', 'node', (e) => {
-    showNodeDetails(e.target.data());
-  });
+  cy.on('tap', 'node', (e) => showNodeDetails(e.target.data()));
 }
 
 function showNodeDetails(node) {
-  const aside = document.querySelector('aside');
+  const aside = document.getElementById('aside');
   if (!aside) return;
   aside.innerHTML = `
     <h3>Узел</h3>
@@ -274,16 +256,241 @@ if (graphResetBtn) {
   });
 }
 
-// ---------- ИИ-ПОИСК ----------
+// ========== РАБОЧИЙ ПОИСК ==========
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const resultsDiv = document.getElementById('results');
+
+async function fetchDNS(domain) {
+  const types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA'];
+  const out = {};
+  for (const t of types) {
+    try {
+      const r = await fetch(`https://dns.google/resolve?name=${domain}&type=${t}`);
+      const j = await r.json();
+      if (j.Answer) out[t] = j.Answer.map(a => a.data);
+    } catch (e) { out[t] = null; }
+  }
+  return out;
+}
+
+async function fetchRDAP(domain) {
+  try {
+    const r = await fetch(`https://rdap.org/domain/${domain}`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+async function fetchCT(domain) {
+  try {
+    const r = await fetch(`https://crt.sh/?q=${domain}&output=json`);
+    const j = await r.json();
+    const subs = new Set();
+    j.forEach(item => {
+      if (item.name_value) {
+        item.name_value.split('\n').forEach(n => {
+          n = n.trim().toLowerCase();
+          if (n && n.endsWith(domain)) subs.add(n);
+        });
+      }
+    });
+    return Array.from(subs).sort();
+  } catch (e) { return []; }
+}
+
+async function fetchIPInfo(ip) {
+  try {
+    const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continent,continentCode,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,offset,currency,isp,org,as,asname,reverse,mobile,proxy,hosting,query`);
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+function renderLoading(text) {
+  resultsDiv.innerHTML = `<div class="result-loading">${text}</div>`;
+}
+
+function renderError(text) {
+  resultsDiv.innerHTML = `<div class="result-error">${text}</div>`;
+}
+
+async function searchDomain(domain) {
+  renderLoading('Загружаю DNS, WHOIS, CT...');
+  const [dns, rdap, ct] = await Promise.all([
+    fetchDNS(domain),
+    fetchRDAP(domain),
+    fetchCT(domain)
+  ]);
+
+  let html = '';
+
+  if (dns) {
+    html += `<div class="result-card"><h3>DNS</h3><table class="result-table">`;
+    for (const [t, vals] of Object.entries(dns)) {
+      if (vals && vals.length) {
+        html += `<tr><td>${t}</td><td>${vals.join('<br>')}</td></tr>`;
+      }
+    }
+    html += `</table></div>`;
+  }
+
+  if (rdap) {
+    html += `<div class="result-card"><h3>WHOIS / RDAP</h3><table class="result-table">`;
+    if (rdap.ldhName) html += `<tr><td>Домен</td><td>${rdap.ldhName}</td></tr>`;
+    if (rdap.status) html += `<tr><td>Статус</td><td>${rdap.status.join(', ')}</td></tr>`;
+    if (rdap.registrar) html += `<tr><td>Регистратор</td><td>${rdap.registrar}</td></tr>`;
+    if (rdap.events) {
+      rdap.events.forEach(e => {
+        if (e.eventAction === 'registration') html += `<tr><td>Создан</td><td>${e.eventDate}</td></tr>`;
+        if (e.eventAction === 'expiration') html += `<tr><td>Истекает</td><td>${e.eventDate}</td></tr>`;
+        if (e.eventAction === 'last changed') html += `<tr><td>Изменён</td><td>${e.eventDate}</td></tr>`;
+      });
+    }
+    if (rdap.nameservers) {
+      html += `<tr><td>NS</td><td>${rdap.nameservers.map(n => n.ldhName).join('<br>')}</td></tr>`;
+    }
+    html += `</table></div>`;
+  } else {
+    html += `<div class="result-card"><h3>WHOIS / RDAP</h3><p class="result-error">Домен не зарегистрирован или RDAP недоступен.</p></div>`;
+  }
+
+  if (ct.length) {
+    html += `<div class="result-card"><h3>Certificate Transparency (${ct.length})</h3><div class="subdomain-list">`;
+    ct.slice(0, 200).forEach(s => html += `<span>${s}</span>`);
+    html += `</div></div>`;
+  }
+
+  resultsDiv.innerHTML = html || '<div class="result-card"><p class="result-error">Ничего не найдено.</p></div>';
+  addHistory(domain);
+}
+
+async function searchIP(ip) {
+  renderLoading('Загружаю данные по IP...');
+  const data = await fetchIPInfo(ip);
+  if (!data || data.status === 'fail') {
+    renderError('Не удалось получить данные по IP.');
+    return;
+  }
+
+  let html = `<div class="result-card"><h3>IP ${data.query}</h3><table class="result-table">`;
+  const fields = {
+    country: 'Страна', countryCode: 'Код страны', regionName: 'Регион', city: 'Город',
+    zip: 'Индекс', lat: 'Широта', lon: 'Долгота', timezone: 'Часовой пояс',
+    isp: 'Провайдер', org: 'Организация', as: 'AS', asname: 'Имя AS',
+    reverse: 'Reverse DNS', mobile: 'Мобильный', proxy: 'Прокси/VPN/Tor', hosting: 'Хостинг'
+  };
+  for (const [k, label] of Object.entries(fields)) {
+    if (data[k] !== undefined && data[k] !== null && data[k] !== '') {
+      html += `<tr><td>${label}</td><td>${data[k]}</td></tr>`;
+    }
+  }
+  html += `</table></div>`;
+  resultsDiv.innerHTML = html;
+  addHistory(ip);
+}
+
+async function searchEmail(email) {
+  renderLoading('Проверяю email...');
+  const domain = email.split('@')[1];
+  if (!domain) { renderError('Неверный email.'); return; }
+
+  const dns = await fetchDNS(domain);
+  let html = `<div class="result-card"><h3>Email: ${email}</h3><table class="result-table">`;
+  if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
+  if (dns.A) html += `<tr><td>A (домен)</td><td>${dns.A.join('<br>')}</td></tr>`;
+  html += `</table></div>`;
+
+  const gravatarHash = await md5(email.toLowerCase());
+  html += `<div class="result-card"><h3>Gravatar</h3>
+    <p style="font-size:13px;color:#6B7280;">Проверка: <a href="https://gravatar.com/${gravatarHash}" target="_blank" style="color:#3B82F6;">gravatar.com/${gravatarHash}</a></p></div>`;
+
+  resultsDiv.innerHTML = html;
+  addHistory(email);
+}
+
+async function md5(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('MD5', buf).catch(() => null);
+  if (!hash) {
+    const r = await fetch(`https://api.hashify.net/hash/md5/hex?value=${encodeURIComponent(str)}`);
+    const j = await r.json();
+    return j.Digest;
+  }
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+if (searchBtn) {
+  searchBtn.addEventListener('click', () => {
+    const val = searchInput.value.trim();
+    if (!val) return;
+
+    if (currentType === 'domain') searchDomain(val);
+    else if (currentType === 'ip') searchIP(val);
+    else if (currentType === 'email') searchEmail(val);
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchBtn.click();
+  });
+}
+
+// ========== EXIF ==========
 const uploadBox = document.getElementById('uploadBox');
 const fileInput = document.getElementById('fileInput');
 const preview = document.getElementById('preview');
 const previewImg = document.getElementById('previewImg');
 const previewName = document.getElementById('previewName');
 const clearPreview = document.getElementById('clearPreview');
-const aiInput = document.getElementById('aiInput');
-const aiAnalyze = document.getElementById('aiAnalyze');
-const aiReport = document.getElementById('aiReport');
+const exifResults = document.getElementById('exifResults');
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) {
+    alert('Только изображения.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImg.src = e.target.result;
+    previewName.textContent = file.name;
+    preview.classList.remove('hidden');
+
+    EXIF.getData(previewImg, function () {
+      const all = EXIF.getAllTags(this);
+      renderExif(all, file);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderExif(tags, file) {
+  const known = {
+    Make: 'Производитель', Model: 'Модель', DateTimeOriginal: 'Дата съёмки',
+    ExposureTime: 'Выдержка', FNumber: 'Диафрагма', ISOSpeedRatings: 'ISO',
+    FocalLength: 'Фокусное расстояние', Flash: 'Вспышка',
+    GPSLatitude: 'GPS широта', GPSLongitude: 'GPS долгота',
+    GPSAltitude: 'GPS высота', Software: 'Софт',
+    Orientation: 'Ориентация', LensModel: 'Объектив'
+  };
+
+  let html = `<div class="result-card"><h3>EXIF — ${file.name}</h3><table class="result-table">`;
+  let found = false;
+  for (const [key, label] of Object.entries(known)) {
+    if (tags[key] !== undefined && tags[key] !== null && tags[key] !== '') {
+      let val = tags[key];
+      if (Array.isArray(val)) val = val.join(', ');
+      html += `<tr><td>${label}</td><td>${val}</td></tr>`;
+      found = true;
+    }
+  }
+  html += `</table></div>`;
+
+  if (!found) {
+    html = `<div class="result-card"><h3>EXIF</h3><p class="result-error">Метаданные не найдены (или они удалены).</p></div>`;
+  }
+
+  exifResults.innerHTML = html;
+  addHistory(file.name);
+}
 
 if (uploadBox && fileInput) {
   uploadBox.addEventListener('click', () => fileInput.click());
@@ -304,27 +511,18 @@ if (uploadBox && fileInput) {
   });
 }
 
-function handleFile(file) {
-  if (!file.type.startsWith('image/')) {
-    alert('Пока поддерживаются только изображения.');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    previewImg.src = e.target.result;
-    previewName.textContent = file.name;
-    preview.classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
-}
-
 if (clearPreview) {
   clearPreview.addEventListener('click', () => {
     preview.classList.add('hidden');
     previewImg.src = '';
+    exifResults.innerHTML = '';
     if (fileInput) fileInput.value = '';
   });
 }
+// ========== ИИ-АНАЛИЗ ТЕКСТА ==========
+const aiInput = document.getElementById('aiInput');
+const aiAnalyze = document.getElementById('aiAnalyze');
+const aiReport = document.getElementById('aiReport');
 
 if (aiAnalyze) {
   aiAnalyze.addEventListener('click', () => {
@@ -339,16 +537,16 @@ if (aiAnalyze) {
     let report = 'Анализ завершён.\n\n';
     if (hasImage) {
       report += `🖼 Изображение: ${previewName.textContent}\n`;
-      report += `   EXIF-данные будут извлечены позже.\n`;
+      report += `   EXIF извлечён (см. выше).\n`;
       report += `   Reverse image search — в разработке.\n\n`;
     }
     if (text) {
       report += `📝 Запрос: ${text}\n`;
       report += `   Тип определён автоматически.\n`;
-      report += `   Данные из открытых источников — в разработке.\n`;
+      report += `   Автопоиск — в разработке.\n`;
     }
 
     aiReport.textContent = report;
     addHistory(text || previewName.textContent || 'изображение');
   });
-    }
+}
