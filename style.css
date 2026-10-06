@@ -113,7 +113,7 @@ main {
 .section.active { display: block; }
 
 .hidden { display: none !important; }
-/* Поиск */
+
 .search-bar {
   display: flex;
   gap: 8px;
@@ -192,7 +192,6 @@ main {
   line-height: 1.6;
 }
 
-/* Карточки */
 .card {
   background: rgba(16, 20, 26, 0.8);
   backdrop-filter: blur(8px);
@@ -216,7 +215,6 @@ main {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Загрузка файла */
 .upload {
   border: 2px dashed #1A2028;
   border-radius: 12px;
@@ -264,7 +262,6 @@ main {
 }
 .ghost-btn:hover { border-color: #EF4444; color: #EF4444; }
 
-/* Каталог */
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -295,7 +292,6 @@ main {
   margin-top: 8px;
 }
 
-/* Профиль */
 .profile-header {
   display: flex;
   align-items: center;
@@ -396,7 +392,7 @@ aside h3 {
   color: #6B7280;
   line-height: 1.6;
 }
-/* Граф */
+
 .graph-toolbar {
   display: flex;
   gap: 8px;
@@ -458,7 +454,6 @@ aside h3 {
   display: inline-block;
 }
 
-/* Результаты поиска */
 #results { display: flex; flex-direction: column; gap: 12px; }
 
 .result-card {
@@ -498,7 +493,7 @@ aside h3 {
   font-family: 'JetBrains Mono', monospace;
 }
 
-.result-actions { display: flex; gap: 8px; margin-top: 12px; }
+.result-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .action-btn {
   background: transparent;
   border: 1px solid #1A2028;
@@ -510,7 +505,6 @@ aside h3 {
 }
 .action-btn:hover { border-color: #3B82F6; color: #3B82F6; }
 
-/* Скелетон */
 .skeleton {
   background: linear-gradient(90deg, #10141A 25%, #1A2028 50%, #10141A 75%);
   background-size: 200% 100%;
@@ -524,7 +518,6 @@ aside h3 {
   100% { background-position: -200% 0; }
 }
 
-/* Светлая тема */
 body.light {
   background: #F0F2F5;
   color: #1A1A1A;
@@ -558,7 +551,6 @@ body.light .history-list { background: #FFFFFF; border-color: #E0E0E0; }
 body.light .history-item { border-color: #E0E0E0; }
 body.light .web-bg { opacity: 0.08; }
 
-/* Мобильная адаптация */
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
@@ -604,4 +596,4 @@ body.light .web-bg { opacity: 0.08; }
   .graph-toolbar input { flex: 1 1 100%; }
 
   .result-actions { flex-wrap: wrap; }
-}
+  }
