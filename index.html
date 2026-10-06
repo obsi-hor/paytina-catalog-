@@ -46,6 +46,7 @@
     <span data-lang="kz">KZ</span>
     <span data-lang="en">EN</span>
   </div>
+  <button class="theme-toggle" id="themeToggle">🌙</button>
 </header>
 
 <div class="layout">
@@ -75,7 +76,7 @@
 
       <div class="type-description" id="typeDescription">
         <h3>Домен</h3>
-        <p>WHOIS/RDAP · DNS-записи · Certificate Transparency поддомены.</p>
+        <p>WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.</p>
       </div>
 
       <div id="results"></div>
@@ -111,7 +112,7 @@
     <!-- ГРАФ -->
     <div class="section" id="graph">
       <div class="graph-toolbar">
-        <input type="text" id="graphInput" placeholder="Введи домен, IP или email — построим граф">
+        <input type="text" id="graphInput" placeholder="Введи домен или IP — построим граф">
         <button id="graphBuild">Построить</button>
         <button id="graphReset" class="ghost">Сброс</button>
       </div>
@@ -143,6 +144,10 @@
       <div class="profile-row">
         <span class="label">Язык</span>
         <span class="value" id="profileLang">Русский</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">Тема</span>
+        <span class="value" id="profileTheme">Тёмная</span>
       </div>
       <div class="profile-row">
         <span class="label">Запросов сделано</span>
