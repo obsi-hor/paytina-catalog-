@@ -8,6 +8,14 @@ navItems.forEach(item => {
     item.classList.add('active');
     sections.forEach(s => s.classList.remove('active'));
     document.getElementById(item.dataset.section).classList.add('active');
+
+    if (item.dataset.section === 'graph') {
+      setTimeout(() => {
+        if (!cy) initGraph();
+        if (cy && cy.elements().length === 0) buildGraph('example.com');
+        if (cy) cy.resize();
+      }, 100);
+    }
   });
 });
 
@@ -48,12 +56,9 @@ langs.forEach(l => {
   });
 });
 
-// восстановление языка
 const savedLang = localStorage.getItem('lang');
 if (savedLang) {
-  langs.forEach(x => {
-    x.classList.toggle('active', x.dataset.lang === savedLang);
-  });
+  langs.forEach(x => x.classList.toggle('active', x.dataset.lang === savedLang));
   if (profileLang) profileLang.textContent = langNames[savedLang] || 'Русский';
 }
 
@@ -88,7 +93,7 @@ if (grid) {
   });
 }
 
-// ---------- ИСТОРИЯ ЗАПРОСОВ ----------
+// ---------- ИСТОРИЯ ----------
 const historyList = document.getElementById('historyList');
 const profileScans = document.getElementById('profileScans');
 
@@ -102,7 +107,6 @@ function saveHistory(h) { localStorage.setItem('history', JSON.stringify(h)); }
 function renderHistory() {
   const h = getHistory();
   if (profileScans) profileScans.textContent = h.length;
-
   if (!historyList) return;
 
   if (!h.length) {
@@ -143,11 +147,208 @@ if (searchBtn) {
   });
 }
 
-// очистка истории
 const clearBtn = document.getElementById('clearHistory');
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
     localStorage.removeItem('history');
     renderHistory();
+  });
+}
+
+// ---------- ГРАФ ----------
+let cy = null;
+
+const COLORS = {
+  domain: '#3B82F6',
+  ip:     '#22C55E',
+  email:  '#F59E0B',
+  nick:   '#A855F7',
+  phone:  '#EF4444'
+};
+
+function initGraph() {
+  const container = document.getElementById('cy');
+  if (!container) return;
+
+  cy = cytoscape({
+    container: container,
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': 'data(color)',
+          'label': 'data(label)',
+          'color': '#E8EAED',
+          'font-size': 11,
+          'text-valign': 'bottom',
+          'text-margin-y': 6,
+          'width': 34,
+          'height': 34,
+          'border-width': 2,
+          'border-color': '#0A0D12',
+          'text-outline-width': 2,
+          'text-outline-color': '#050608'
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1.5,
+          'line-color': '#2A3340',
+          'target-arrow-color': '#2A3340',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          'label': 'data(label)',
+          'font-size': 9,
+          'color': '#6B7280',
+          'text-outline-width': 2,
+          'text-outline-color': '#050608'
+        }
+      },
+      {
+        selector: 'node:selected',
+        style: { 'border-color': '#3B82F6', 'border-width': 3 }
+      }
+    ],
+    layout: { name: 'cose', animate: true },
+    wheelSensitivity: 0.2
+  });
+
+  cy.on('tap', 'node', (e) => {
+    showNodeDetails(e.target.data());
+  });
+}
+
+function showNodeDetails(node) {
+  const aside = document.querySelector('aside');
+  if (!aside) return;
+  aside.innerHTML = `
+    <h3>Узел</h3>
+    <div class="profile-row"><span class="label">Тип</span><span class="value">${node.type || '—'}</span></div>
+    <div class="profile-row"><span class="label">Значение</span><span class="value">${node.label}</span></div>
+    <div class="profile-row"><span class="label">ID</span><span class="value">${node.id}</span></div>
+  `;
+}
+
+function buildGraph(selector) {
+  if (!cy) initGraph();
+  if (!cy) return;
+
+  const nodes = [
+    { data: { id: 'root',  label: selector,         type: 'domain', color: COLORS.domain } },
+    { data: { id: 'ip1',   label: '93.184.216.34',  type: 'ip',     color: COLORS.ip } },
+    { data: { id: 'ns1',   label: 'ns1.' + selector, type: 'domain', color: COLORS.domain } },
+    { data: { id: 'mx1',   label: 'mail.' + selector, type: 'domain', color: COLORS.domain } },
+    { data: { id: 'em1',   label: 'admin@' + selector, type: 'email', color: COLORS.email } },
+    { data: { id: 'nick1', label: '@admin',          type: 'nick',   color: COLORS.nick } }
+  ];
+
+  const edges = [
+    { data: { source: 'root', target: 'ip1',  label: 'A' } },
+    { data: { source: 'root', target: 'ns1',  label: 'NS' } },
+    { data: { source: 'root', target: 'mx1',  label: 'MX' } },
+    { data: { source: 'mx1',  target: 'em1',  label: 'admin' } },
+    { data: { source: 'root', target: 'nick1', label: 'owner' } }
+  ];
+
+  cy.elements().remove();
+  cy.add([...nodes, ...edges]);
+  cy.layout({ name: 'cose', animate: true, padding: 30 }).run();
+}
+
+const graphBuildBtn = document.getElementById('graphBuild');
+const graphInput = document.getElementById('graphInput');
+const graphResetBtn = document.getElementById('graphReset');
+
+if (graphBuildBtn) {
+  graphBuildBtn.addEventListener('click', () => {
+    const val = graphInput.value.trim() || 'example.com';
+    buildGraph(val);
+  });
+}
+
+if (graphResetBtn) {
+  graphResetBtn.addEventListener('click', () => {
+    if (cy) cy.elements().remove();
+    graphInput.value = '';
+  });
+}
+
+// ---------- ИИ-ПОИСК ----------
+const uploadBox = document.getElementById('uploadBox');
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const previewImg = document.getElementById('previewImg');
+const previewName = document.getElementById('previewName');
+const clearPreview = document.getElementById('clearPreview');
+const aiInput = document.getElementById('aiInput');
+const aiAnalyze = document.getElementById('aiAnalyze');
+const aiReport = document.getElementById('aiReport');
+
+if (uploadBox && fileInput) {
+  uploadBox.addEventListener('click', () => fileInput.click());
+
+  uploadBox.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadBox.classList.add('dragover');
+  });
+  uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+  uploadBox.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadBox.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+}
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) {
+    alert('Пока поддерживаются только изображения.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImg.src = e.target.result;
+    previewName.textContent = file.name;
+    preview.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+if (clearPreview) {
+  clearPreview.addEventListener('click', () => {
+    preview.classList.add('hidden');
+    previewImg.src = '';
+    if (fileInput) fileInput.value = '';
+  });
+}
+
+if (aiAnalyze) {
+  aiAnalyze.addEventListener('click', () => {
+    const text = aiInput.value.trim();
+    const hasImage = !preview.classList.contains('hidden');
+
+    if (!text && !hasImage) {
+      alert('Введи текст или загрузи фото.');
+      return;
+    }
+
+    let report = 'Анализ завершён.\n\n';
+    if (hasImage) {
+      report += `🖼 Изображение: ${previewName.textContent}\n`;
+      report += `   EXIF-данные будут извлечены позже.\n`;
+      report += `   Reverse image search — в разработке.\n\n`;
+    }
+    if (text) {
+      report += `📝 Запрос: ${text}\n`;
+      report += `   Тип определён автоматически.\n`;
+      report += `   Данные из открытых источников — в разработке.\n`;
+    }
+
+    aiReport.textContent = report;
+    addHistory(text || previewName.textContent || 'изображение');
   });
     }
