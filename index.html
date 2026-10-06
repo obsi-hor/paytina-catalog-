@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>paytina-catalog</title>
 <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -62,45 +63,30 @@
     <!-- ПОИСК -->
     <div class="section active" id="search">
       <div class="search-bar">
-        <input type="text" placeholder="Домен, email, IP, ник или номер телефона...">
-        <button>Искать</button>
+        <input type="text" id="searchInput" placeholder="Домен, IP или email...">
+        <button id="searchBtn">Искать</button>
       </div>
 
       <div class="types" id="types">
         <span class="active" data-type="domain">Домен</span>
-        <span data-type="email">Email</span>
         <span data-type="ip">IP</span>
-        <span data-type="nick">Ник</span>
-        <span data-type="phone">Номер</span>
+        <span data-type="email">Email</span>
       </div>
 
       <div class="type-description" id="typeDescription">
         <h3>Домен</h3>
-        <p>Введи домен — получишь WHOIS, DNS-записи, поддомены из Certificate Transparency и данные ASN.</p>
+        <p>WHOIS/RDAP · DNS-записи · Certificate Transparency поддомены.</p>
       </div>
 
-      <div class="card">
-        <h3>WHOIS</h3>
-        <p>Здесь появятся данные о регистрации домена</p>
-      </div>
-
-      <div class="card">
-        <h3>DNS</h3>
-        <p>A, AAAA, MX, NS, TXT — записи домена</p>
-      </div>
-
-      <div class="card">
-        <h3>Certificate Transparency</h3>
-        <p>Поддомены из логов сертификатов</p>
-      </div>
+      <div id="results"></div>
     </div>
 
     <!-- ИИ-ПОИСК -->
     <div class="section" id="ai">
       <div class="upload" id="uploadBox">
         <div class="big">Перетащи файл или нажми для выбора</div>
-        <div class="small">Фото, IP, ссылка, ник, номер — ИИ разберёт всё</div>
-        <input type="file" id="fileInput" style="display:none">
+        <div class="small">JPG, PNG, TIFF — вытащим EXIF: камера, дата, GPS</div>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
       </div>
 
       <div class="preview hidden" id="preview">
@@ -109,7 +95,9 @@
         <button class="ghost-btn" id="clearPreview">Убрать</button>
       </div>
 
-      <div class="search-bar">
+      <div id="exifResults"></div>
+
+      <div class="search-bar" style="margin-top:20px;">
         <input type="text" id="aiInput" placeholder="Или введи текст: домен, IP, email, ник...">
         <button id="aiAnalyze">Анализировать</button>
       </div>
@@ -157,17 +145,13 @@
         <span class="value" id="profileLang">Русский</span>
       </div>
       <div class="profile-row">
-        <span class="label">Подписка</span>
-        <span class="value">не активна</span>
-      </div>
-      <div class="profile-row">
         <span class="label">Запросов сделано</span>
         <span class="value" id="profileScans">0</span>
       </div>
 
       <h3 class="profile-h">История запросов</h3>
       <div id="historyList" class="history-list">
-        <div class="history-empty">Пока пусто. Сделай первый запрос.</div>
+        <div class="history-empty">Пока пусто.</div>
       </div>
 
       <button class="clear-history" id="clearHistory">Очистить историю</button>
@@ -175,7 +159,7 @@
 
   </main>
 
-  <aside>
+  <aside id="aside">
     <h3>Детали</h3>
     <p class="empty">Выбери результат слева — здесь появятся подробности.</p>
   </aside>
