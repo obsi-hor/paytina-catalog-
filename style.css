@@ -486,3 +486,46 @@ aside h3 {
   .graph-toolbar { flex-wrap: wrap; }
   .graph-toolbar input { flex: 1 1 100%; }
   }
+/* Результаты поиска */
+#results { display: flex; flex-direction: column; gap: 12px; }
+
+.result-card {
+  background: rgba(16, 20, 26, 0.8);
+  border: 1px solid #1A2028;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.result-card h3 {
+  font-size: 13px;
+  color: #3B82F6;
+  margin-bottom: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.result-table { width: 100%; border-collapse: collapse; }
+.result-table tr { border-bottom: 1px solid #1A2028; }
+.result-table tr:last-child { border-bottom: none; }
+.result-table td { padding: 8px 0; font-size: 13px; vertical-align: top; }
+.result-table td:first-child { color: #6B7280; width: 40%; }
+.result-table td:last-child { color: #E8EAED; font-family: 'JetBrains Mono', monospace; word-break: break-all; }
+
+.result-loading { color: #6B7280; font-size: 13px; padding: 20px 0; text-align: center; }
+.result-error { color: #EF4444; font-size: 13px; padding: 12px 0; }
+
+.subdomain-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.subdomain-list span {
+  font-size: 12px;
+  color: #8A93A0;
+  background: #10141A;
+  border: 1px solid #1A2028;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@media (max-width: 900px) {
+  #results { gap: 8px; }
+}
