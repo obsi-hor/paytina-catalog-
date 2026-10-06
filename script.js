@@ -138,7 +138,6 @@ if (clearBtn) {
     renderHistory();
   });
 }
-
 // ========== ГРАФ ==========
 let cy = null;
 
@@ -301,8 +300,29 @@ async function fetchCT(domain) {
 
 async function fetchIPInfo(ip) {
   try {
-    const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continent,continentCode,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,offset,currency,isp,org,as,asname,reverse,mobile,proxy,hosting,query`);
-    return await r.json();
+    const r = await fetch(`https://ipwho.is/${ip}`);
+    const j = await r.json();
+    if (!j.success) return null;
+    return {
+      status: 'success',
+      query: j.ip,
+      country: j.country,
+      countryCode: j.country_code,
+      regionName: j.region,
+      city: j.city,
+      zip: j.postal,
+      lat: j.latitude,
+      lon: j.longitude,
+      timezone: j.timezone?.id,
+      isp: j.connection?.isp,
+      org: j.connection?.org,
+      as: j.connection?.asn ? 'AS' + j.connection.asn : '',
+      asname: j.connection?.domain,
+      reverse: '',
+      mobile: '',
+      proxy: j.security?.proxy,
+      hosting: j.security?.hosting
+    };
   } catch (e) { return null; }
 }
 
@@ -400,23 +420,8 @@ async function searchEmail(email) {
   if (dns.A) html += `<tr><td>A (домен)</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
 
-  const gravatarHash = await md5(email.toLowerCase());
-  html += `<div class="result-card"><h3>Gravatar</h3>
-    <p style="font-size:13px;color:#6B7280;">Проверка: <a href="https://gravatar.com/${gravatarHash}" target="_blank" style="color:#3B82F6;">gravatar.com/${gravatarHash}</a></p></div>`;
-
   resultsDiv.innerHTML = html;
   addHistory(email);
-}
-
-async function md5(str) {
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest('MD5', buf).catch(() => null);
-  if (!hash) {
-    const r = await fetch(`https://api.hashify.net/hash/md5/hex?value=${encodeURIComponent(str)}`);
-    const j = await r.json();
-    return j.Digest;
-  }
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 if (searchBtn) {
@@ -519,6 +524,7 @@ if (clearPreview) {
     if (fileInput) fileInput.value = '';
   });
 }
+
 // ========== ИИ-АНАЛИЗ ТЕКСТА ==========
 const aiInput = document.getElementById('aiInput');
 const aiAnalyze = document.getElementById('aiAnalyze');
@@ -549,4 +555,4 @@ if (aiAnalyze) {
     aiReport.textContent = report;
     addHistory(text || previewName.textContent || 'изображение');
   });
-}
+  }
