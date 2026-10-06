@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>paytina-catalog</title>
+<script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -96,25 +97,43 @@
 
     <!-- ИИ-ПОИСК -->
     <div class="section" id="ai">
-      <div class="upload">
-        <div class="big">Перетащи файл или вставь текст</div>
+      <div class="upload" id="uploadBox">
+        <div class="big">Перетащи файл или нажми для выбора</div>
         <div class="small">Фото, IP, ссылка, ник, номер — ИИ разберёт всё</div>
+        <input type="file" id="fileInput" style="display:none">
       </div>
+
+      <div class="preview hidden" id="preview">
+        <img id="previewImg" alt="preview">
+        <div class="preview-name" id="previewName"></div>
+        <button class="ghost-btn" id="clearPreview">Убрать</button>
+      </div>
+
       <div class="search-bar">
-        <input type="text" placeholder="Или введи запрос вручную...">
-        <button>Анализировать</button>
+        <input type="text" id="aiInput" placeholder="Или введи текст: домен, IP, email, ник...">
+        <button id="aiAnalyze">Анализировать</button>
       </div>
-      <div class="card">
+
+      <div class="card" id="aiReportCard">
         <h3>Отчёт ИИ</h3>
-        <p>Здесь появится всё, что ИИ нашёл в открытых источниках</p>
+        <p id="aiReport">Здесь появится всё, что ИИ нашёл в открытых источниках</p>
       </div>
     </div>
 
     <!-- ГРАФ -->
     <div class="section" id="graph">
-      <div class="graph-placeholder">
-        Граф связей появится после первого поиска.<br>
-        Узлы: домен · IP · email · ник · номер
+      <div class="graph-toolbar">
+        <input type="text" id="graphInput" placeholder="Введи домен, IP или email — построим граф">
+        <button id="graphBuild">Построить</button>
+        <button id="graphReset" class="ghost">Сброс</button>
+      </div>
+      <div id="cy" class="cy-container"></div>
+      <div class="graph-legend">
+        <span><i style="background:#3B82F6"></i> домен</span>
+        <span><i style="background:#22C55E"></i> IP</span>
+        <span><i style="background:#F59E0B"></i> email</span>
+        <span><i style="background:#A855F7"></i> ник</span>
+        <span><i style="background:#EF4444"></i> номер</span>
       </div>
     </div>
 
