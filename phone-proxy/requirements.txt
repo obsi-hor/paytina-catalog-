@@ -1,3 +1,3 @@
 fastapi
 uvicorn
-phone-number-lookup
+git+https://github.com/cutypie2351/phone-number-lookup.git
