@@ -1,4 +1,4 @@
-// ========== DOM-ССЫЛКИ (всё объявлено сразу) ==========
+// ========== DOM-ССЫЛКИ ==========
 const navItems = document.querySelectorAll('#nav .nav-item');
 const sections = document.querySelectorAll('.section');
 const types = document.querySelectorAll('#types span');
@@ -28,6 +28,7 @@ const graphBuildBtn = document.getElementById('graphBuild');
 const graphInput = document.getElementById('graphInput');
 const graphResetBtn = document.getElementById('graphReset');
 
+const PROXY_URL = 'https://paytina-catalog-phone-proxy.onrender.com';
 let currentType = 'domain';
 
 // ========== НАВИГАЦИЯ ==========
@@ -52,7 +53,8 @@ navItems.forEach(item => {
 const typeDescriptions = {
   domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.' },
   ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · Shodan (порты, уязвимости).' },
-  email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot).' }
+  email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot).' },
+  phone:  { title: 'Номер',  text: 'Имя из контактов, соцсети, спам-статус (Sync.ME, CallerID, CallApp, Truecaller).' }
 };
 
 types.forEach(t => {
@@ -211,21 +213,13 @@ async function fetchIPInfo(ip) {
     const j = await r.json();
     if (!j.success) return null;
     return {
-      query: j.ip,
-      country: j.country,
-      countryCode: j.country_code,
-      regionName: j.region,
-      city: j.city,
-      zip: j.postal,
-      lat: j.latitude,
-      lon: j.longitude,
-      timezone: j.timezone?.id,
-      isp: j.connection?.isp,
-      org: j.connection?.org,
+      query: j.ip, country: j.country, countryCode: j.country_code,
+      regionName: j.region, city: j.city, zip: j.postal,
+      lat: j.latitude, lon: j.longitude, timezone: j.timezone?.id,
+      isp: j.connection?.isp, org: j.connection?.org,
       as: j.connection?.asn ? 'AS' + j.connection.asn : '',
       asname: j.connection?.domain,
-      proxy: j.security?.proxy,
-      hosting: j.security?.hosting
+      proxy: j.security?.proxy, hosting: j.security?.hosting
     };
   } catch (e) { return null; }
 }
@@ -236,10 +230,8 @@ async function fetchShodan(ip) {
     if (!r.ok) return null;
     const j = await r.json();
     return {
-      ports: j.ports || [],
-      hostnames: j.hostnames || [],
-      vulns: j.vulns || [],
-      tags: j.tags || []
+      ports: j.ports || [], hostnames: j.hostnames || [],
+      vulns: j.vulns || [], tags: j.tags || []
     };
   } catch (e) { return null; }
 }
@@ -281,10 +273,7 @@ function renderError(text) {
 async function searchDomain(domain) {
   renderLoading();
   const [dns, rdap, ct, wayback] = await Promise.all([
-    fetchDNS(domain),
-    fetchRDAP(domain),
-    fetchCT(domain),
-    fetchWayback(domain)
+    fetchDNS(domain), fetchRDAP(domain), fetchCT(domain), fetchWayback(domain)
   ]);
 
   let html = '';
@@ -344,10 +333,7 @@ async function searchIP(ip) {
   renderLoading();
   const [data, shodan] = await Promise.all([fetchIPInfo(ip), fetchShodan(ip)]);
 
-  if (!data) {
-    renderError('Не удалось получить данные по IP.');
-    return;
-  }
+  if (!data) { renderError('Не удалось получить данные по IP.'); return; }
 
   let html = `<div class="result-card"><h3>IP ${data.query}</h3><table class="result-table">`;
   const fields = {
@@ -413,6 +399,47 @@ async function searchEmail(email) {
   addHistory(email);
 }
 
+// ========== ПОИСК НОМЕРА ==========
+async function searchPhone(phone) {
+  renderLoading();
+  try {
+    const response = await fetch(`${PROXY_URL}/lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      renderError('Ошибка: ' + (result.error || 'не удалось получить данные'));
+      return;
+    }
+
+    let html = `<div class="result-card"><h3>Номер: ${phone}</h3>`;
+
+    if (result.raw_output && result.raw_output.trim()) {
+      const escaped = result.raw_output
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      html += `<pre style="white-space:pre-wrap;font-size:12px;color:#E8EAED;font-family:'JetBrains Mono',monospace;line-height:1.6;">${escaped}</pre>`;
+    } else {
+      html += `<p style="color:#6B7280;font-size:13px;">Данных не найдено. Возможно, номер не сохранён ни у кого из пользователей баз.</p>`;
+    }
+
+    html += `<div class="result-actions">
+      <button class="action-btn" onclick="copyResult('${phone}')">Копировать</button>
+    </div></div>`;
+
+    resultsDiv.innerHTML = html;
+    addHistory(phone);
+
+  } catch (e) {
+    renderError('Прокси засыпает. Подожди минуту и попробуй снова.');
+  }
+}
+
 // ========== ЗАПУСК ПОИСКА ==========
 if (searchBtn) {
   searchBtn.addEventListener('click', () => {
@@ -421,21 +448,20 @@ if (searchBtn) {
     if (currentType === 'domain') searchDomain(val);
     else if (currentType === 'ip') searchIP(val);
     else if (currentType === 'email') searchEmail(val);
+    else if (currentType === 'phone') searchPhone(val);
   });
 
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchBtn.click();
   });
-  }
+}
+
 // ========== ГРАФ ==========
 let cy = null;
 
 const COLORS = {
-  domain: '#3B82F6',
-  ip:     '#22C55E',
-  email:  '#F59E0B',
-  nick:   '#A855F7',
-  phone:  '#EF4444'
+  domain: '#3B82F6', ip: '#22C55E', email: '#F59E0B',
+  nick: '#A855F7', phone: '#EF4444'
 };
 
 function initGraph() {
@@ -445,39 +471,20 @@ function initGraph() {
   cy = cytoscape({
     container: container,
     style: [
-      {
-        selector: 'node',
-        style: {
-          'background-color': 'data(color)',
-          'label': 'data(label)',
-          'color': '#E8EAED',
-          'font-size': 11,
-          'text-valign': 'bottom',
-          'text-margin-y': 6,
-          'width': 34,
-          'height': 34,
-          'border-width': 2,
-          'border-color': '#0A0D12',
-          'text-outline-width': 2,
-          'text-outline-color': '#050608'
-        }
-      },
-      {
-        selector: 'edge',
-        style: {
-          'width': 1.5,
-          'line-color': '#2A3340',
-          'target-arrow-color': '#2A3340',
-          'target-arrow-shape': 'triangle',
-          'curve-style': 'bezier',
-          'label': 'data(label)',
-          'font-size': 9,
-          'color': '#6B7280',
-          'text-outline-width': 2,
-          'text-outline-color': '#050608'
-        }
-      },
-      { selector: 'node:selected', style: { 'border-color': '#3B82F6', 'border-width': 3 } }
+      { selector: 'node', style: {
+        'background-color': 'data(color)', 'label': 'data(label)',
+        'color': '#E8EAED', 'font-size': 11, 'text-valign': 'bottom',
+        'text-margin-y': 6, 'width': 34, 'height': 34,
+        'border-width': 2, 'border-color': '#0A0D12',
+        'text-outline-width': 2, 'text-outline-color': '#050608'
+      }},
+      { selector: 'edge', style: {
+        'width': 1.5, 'line-color': '#2A3340', 'target-arrow-color': '#2A3340',
+        'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
+        'label': 'data(label)', 'font-size': 9, 'color': '#6B7280',
+        'text-outline-width': 2, 'text-outline-color': '#050608'
+      }},
+      { selector: 'node:selected', style: { 'border-color': '#3B82F6', 'border-width': 3 }}
     ],
     layout: { name: 'cose', animate: true },
     wheelSensitivity: 0.2
@@ -571,11 +578,9 @@ function handleFile(file) {
     previewImg.src = e.target.result;
     previewName.textContent = file.name;
     preview.classList.remove('hidden');
-
     if (typeof EXIF !== 'undefined') {
       EXIF.getData(previewImg, function () {
-        const all = EXIF.getAllTags(this);
-        renderExif(all, file);
+        renderExif(EXIF.getAllTags(this), file);
       });
     }
   };
@@ -603,9 +608,7 @@ function renderExif(tags, file) {
     }
   }
   html += `</table></div>`;
-
   if (!found) html = `<div class="result-card"><h3>EXIF</h3><p class="result-error">Метаданные не найдены.</p></div>`;
-
   exifResults.innerHTML = html;
   addHistory(file.name);
 }
@@ -638,13 +641,10 @@ if (aiAnalyze) {
   aiAnalyze.addEventListener('click', () => {
     const text = aiInput.value.trim();
     const hasImage = !preview.classList.contains('hidden');
-
     if (!text && !hasImage) { alert('Введи текст или загрузи фото.'); return; }
-
     let report = 'Анализ завершён.\n\n';
     if (hasImage) report += `🖼 Изображение: ${previewName.textContent}\n   EXIF извлечён.\n\n`;
     if (text) report += `📝 Запрос: ${text}\n`;
-
     aiReport.textContent = report;
     addHistory(text || previewName.textContent || 'изображение');
   });
@@ -653,7 +653,7 @@ if (aiAnalyze) {
 // ========== КОПИРОВАНИЕ И ЭКСПОРТ ==========
 function copyResult(text) {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text)).catch(() => alert('Ошибка копирования'));
+    navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text)).catch(() => alert('Ошибка'));
   } else {
     const ta = document.createElement('textarea');
     ta.value = text;
