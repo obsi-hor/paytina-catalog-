@@ -44,8 +44,6 @@
     <span data-lang="kz">KZ</span>
     <span data-lang="en">EN</span>
   </div>
-  <button class="login" id="loginBtn">Войти через Telegram</button>
-  <button class="subscribe hidden" id="subscribeBtn">Подписка</button>
 </header>
 
 <div class="layout">
@@ -122,36 +120,38 @@
 
     <!-- КАТАЛОГ -->
     <div class="section" id="catalog">
-      <div class="catalog-grid">
-        <div class="tool"><div class="name">Shodan</div><div class="desc">Поиск устройств и портов</div></div>
-        <div class="tool"><div class="name">crt.sh</div><div class="desc">Certificate Transparency логи</div></div>
-        <div class="tool"><div class="name">HIBP</div><div class="desc">Проверка утечек email</div></div>
-        <div class="tool"><div class="name">VirusTotal</div><div class="desc">Репутация доменов и файлов</div></div>
-        <div class="tool"><div class="name">Censys</div><div class="desc">Сканирование интернета</div></div>
-        <div class="tool"><div class="name">urlscan.io</div><div class="desc">Анализ сайтов</div></div>
-        <div class="tool"><div class="name">Sherlock</div><div class="desc">Поиск по нику</div></div>
-        <div class="tool"><div class="name">Holehe</div><div class="desc">Проверка email на площадках</div></div>
-      </div>
+      <div class="catalog-grid" id="catalogGrid"></div>
     </div>
 
     <!-- ПРОФИЛЬ -->
     <div class="section" id="profile">
-      <div class="profile-row">
-        <span class="label">Telegram</span>
-        <span class="value" id="profileTelegram">не подключён</span>
+      <div class="profile-header">
+        <div class="profile-avatar">P</div>
+        <div>
+          <div class="profile-name">Гость</div>
+          <div class="profile-sub">Локальный профиль</div>
+        </div>
       </div>
+
       <div class="profile-row">
         <span class="label">Язык</span>
-        <span class="value">Русский</span>
+        <span class="value" id="profileLang">Русский</span>
       </div>
       <div class="profile-row">
         <span class="label">Подписка</span>
-        <span class="value" id="profileSub">нет</span>
+        <span class="value">не активна</span>
       </div>
       <div class="profile-row">
-        <span class="label">Промокод</span>
-        <span class="value" id="profilePromo">—</span>
+        <span class="label">Запросов сделано</span>
+        <span class="value" id="profileScans">0</span>
       </div>
+
+      <h3 class="profile-h">История запросов</h3>
+      <div id="historyList" class="history-list">
+        <div class="history-empty">Пока пусто. Сделай первый запрос.</div>
+      </div>
+
+      <button class="clear-history" id="clearHistory">Очистить историю</button>
     </div>
 
   </main>
@@ -163,53 +163,7 @@
 
 </div>
 
-<!-- МОДАЛКА ПОДПИСКИ -->
-<div class="modal-overlay hidden" id="subModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>Добро пожаловать в раздел Подписка</h2>
-      <button class="modal-close" id="closeSubModal">✕</button>
-    </div>
-
-    <div class="plans">
-      <div class="plan" data-plan="1d" data-price="15">
-        <div class="plan-name">1 день</div>
-        <div class="plan-price">15 ⭐</div>
-        <button class="plan-buy">Купить</button>
-      </div>
-      <div class="plan" data-plan="3d" data-price="25">
-        <div class="plan-name">3 дня</div>
-        <div class="plan-price">25 ⭐</div>
-        <button class="plan-buy">Купить</button>
-      </div>
-      <div class="plan" data-plan="7d" data-price="50">
-        <div class="plan-name">7 дней</div>
-        <div class="plan-price">50 ⭐</div>
-        <button class="plan-buy">Купить</button>
-      </div>
-      <div class="plan" data-plan="30d" data-price="100">
-        <div class="plan-name">30 дней</div>
-        <div class="plan-price">100 ⭐</div>
-        <button class="plan-buy">Купить</button>
-      </div>
-      <div class="plan plan-forever" data-plan="forever" data-price="200">
-        <div class="plan-name">Навсегда</div>
-        <div class="plan-price">200 ⭐</div>
-        <button class="plan-buy">Купить</button>
-      </div>
-    </div>
-
-    <div class="promo-block">
-      <button class="promo-toggle" id="promoToggle">У меня есть промокод</button>
-      <div class="promo-input hidden" id="promoInput">
-        <input type="text" placeholder="Введи промокод...">
-        <button id="promoApply">Применить</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script src="script.js"></script>
 
 </body>
-  </html>
+</html>
