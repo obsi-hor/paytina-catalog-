@@ -3,5 +3,5 @@ uvicorn
 requests
 cryptography
 colorama
-httpx
+httpx[http2]
 phonenumbers
