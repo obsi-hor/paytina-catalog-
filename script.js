@@ -12,7 +12,6 @@ navItems.forEach(item => {
     if (item.dataset.section === 'graph') {
       setTimeout(() => {
         if (!cy) initGraph();
-        if (cy && cy.elements().length === 0) buildGraph('example.com');
         if (cy) cy.resize();
       }, 100);
     }
@@ -21,9 +20,9 @@ navItems.forEach(item => {
 
 // ========== ОПИСАНИЯ ТИПОВ ==========
 const typeDescriptions = {
-  domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency поддомены.' },
-  ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · проверка прокси/VPN/хостинга.' },
-  email:  { title: 'Email',  text: 'MX-записи домена · Gravatar профиль · проверка в утечках.' }
+  domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.' },
+  ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · Shodan (порты, уязвимости).' },
+  email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot) · Gravatar.' }
 };
 
 const types = document.querySelectorAll('#types span');
@@ -58,6 +57,27 @@ const savedLang = localStorage.getItem('lang');
 if (savedLang) {
   langs.forEach(x => x.classList.toggle('active', x.dataset.lang === savedLang));
   if (profileLang) profileLang.textContent = langNames[savedLang] || 'Русский';
+}
+
+// ========== ТЕМА ==========
+const themeToggle = document.getElementById('themeToggle');
+const profileTheme = document.getElementById('profileTheme');
+const savedTheme = localStorage.getItem('theme');
+
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  if (themeToggle) themeToggle.textContent = light ? '☀️' : '🌙';
+  if (profileTheme) profileTheme.textContent = light ? 'Светлая' : 'Тёмная';
+}
+
+if (savedTheme === 'light') applyTheme(true);
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const isLight = !document.body.classList.contains('light');
+    applyTheme(isLight);
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
 }
 
 // ========== КАТАЛОГ ==========
@@ -137,8 +157,8 @@ if (clearBtn) {
     localStorage.removeItem('history');
     renderHistory();
   });
-}
-// ========== ГРАФ ==========
+    }
+   // ========== ГРАФ ==========
 let cy = null;
 
 const COLORS = {
@@ -211,26 +231,67 @@ function showNodeDetails(node) {
   `;
 }
 
-function buildGraph(selector) {
+async function buildGraph(selector) {
   if (!cy) initGraph();
   if (!cy) return;
 
-  const nodes = [
-    { data: { id: 'root',  label: selector,         type: 'domain', color: COLORS.domain } },
-    { data: { id: 'ip1',   label: '93.184.216.34',  type: 'ip',     color: COLORS.ip } },
-    { data: { id: 'ns1',   label: 'ns1.' + selector, type: 'domain', color: COLORS.domain } },
-    { data: { id: 'mx1',   label: 'mail.' + selector, type: 'domain', color: COLORS.domain } },
-    { data: { id: 'em1',   label: 'admin@' + selector, type: 'email', color: COLORS.email } },
-    { data: { id: 'nick1', label: '@admin',          type: 'nick',   color: COLORS.nick } }
-  ];
+  const nodes = [];
+  const edges = [];
 
-  const edges = [
-    { data: { source: 'root', target: 'ip1',  label: 'A' } },
-    { data: { source: 'root', target: 'ns1',  label: 'NS' } },
-    { data: { source: 'root', target: 'mx1',  label: 'MX' } },
-    { data: { source: 'mx1',  target: 'em1',  label: 'admin' } },
-    { data: { source: 'root', target: 'nick1', label: 'owner' } }
-  ];
+  const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(selector);
+  const rootType = isIP ? 'ip' : 'domain';
+  nodes.push({ data: { id: 'root', label: selector, type: rootType, color: COLORS[rootType] } });
+
+  if (isIP) {
+    const shodan = await fetchShodan(selector);
+    if (shodan) {
+      if (shodan.hostnames) {
+        shodan.hostnames.forEach((h, i) => {
+          const id = 'host' + i;
+          nodes.push({ data: { id, label: h, type: 'domain', color: COLORS.domain } });
+          edges.push({ data: { source: id, target: 'root', label: 'resolves' } });
+        });
+      }
+      if (shodan.ports) {
+        shodan.ports.slice(0, 20).forEach((p, i) => {
+          const id = 'port' + i;
+          nodes.push({ data: { id, label: ':' + p, type: 'ip', color: '#F59E0B' } });
+          edges.push({ data: { source: 'root', target: id, label: 'port' } });
+        });
+      }
+    }
+  } else {
+    const dns = await fetchDNS(selector);
+
+    if (dns.A) {
+      dns.A.forEach((ip, i) => {
+        const id = 'ip' + i;
+        nodes.push({ data: { id, label: ip, type: 'ip', color: COLORS.ip } });
+        edges.push({ data: { source: 'root', target: id, label: 'A' } });
+      });
+    }
+    if (dns.MX) {
+      dns.MX.forEach((mx, i) => {
+        const id = 'mx' + i;
+        nodes.push({ data: { id, label: mx, type: 'domain', color: COLORS.domain } });
+        edges.push({ data: { source: 'root', target: id, label: 'MX' } });
+      });
+    }
+    if (dns.NS) {
+      dns.NS.forEach((ns, i) => {
+        const id = 'ns' + i;
+        nodes.push({ data: { id, label: ns, type: 'domain', color: COLORS.domain } });
+        edges.push({ data: { source: 'root', target: id, label: 'NS' } });
+      });
+    }
+    if (dns.CNAME) {
+      dns.CNAME.forEach((c, i) => {
+        const id = 'cn' + i;
+        nodes.push({ data: { id, label: c, type: 'domain', color: COLORS.domain } });
+        edges.push({ data: { source: 'root', target: id, label: 'CNAME' } });
+      });
+    }
+  }
 
   cy.elements().remove();
   cy.add([...nodes, ...edges]);
@@ -242,9 +303,9 @@ const graphInput = document.getElementById('graphInput');
 const graphResetBtn = document.getElementById('graphReset');
 
 if (graphBuildBtn) {
-  graphBuildBtn.addEventListener('click', () => {
+  graphBuildBtn.addEventListener('click', async () => {
     const val = graphInput.value.trim() || 'example.com';
-    buildGraph(val);
+    await buildGraph(val);
   });
 }
 
@@ -255,11 +316,7 @@ if (graphResetBtn) {
   });
 }
 
-// ========== РАБОЧИЙ ПОИСК ==========
-const searchInput = document.getElementById('searchInput');
-const searchBtn = document.getElementById('searchBtn');
-const resultsDiv = document.getElementById('results');
-
+// ========== API-ФУНКЦИИ ==========
 async function fetchDNS(domain) {
   const types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA'];
   const out = {};
@@ -278,10 +335,7 @@ async function fetchRDAP(domain) {
     const r = await fetch(`https://rdap.org/domain/${domain}`);
     if (!r.ok) return null;
     return await r.json();
-  } catch (e) { return null; }
-}
-
-async function fetchCT(domain) {
+    async function fetchCT(domain) {
   try {
     const r = await fetch(`https://crt.sh/?q=${domain}&output=json`);
     const j = await r.json();
@@ -326,20 +380,63 @@ async function fetchIPInfo(ip) {
   } catch (e) { return null; }
 }
 
-function renderLoading(text) {
-  resultsDiv.innerHTML = `<div class="result-loading">${text}</div>`;
+async function fetchShodan(ip) {
+  try {
+    const r = await fetch(`https://internetdb.shodan.io/${ip}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return {
+      ports: j.ports || [],
+      hostnames: j.hostnames || [],
+      vulns: j.vulns || [],
+      tags: j.tags || []
+    };
+  } catch (e) { return null; }
+}
+
+async function fetchWayback(domain) {
+  try {
+    const r = await fetch(`https://archive.org/wayback/available?url=${domain}`);
+    const j = await r.json();
+    return j.archived_snapshots?.closest || null;
+  } catch (e) { return null; }
+}
+
+async function checkBreaches(email) {
+  try {
+    const r = await fetch(`https://api.xposedornot.com/v1/check-email/${email}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j;
+  } catch (e) { return null; }
+}
+
+function renderLoading() {
+  resultsDiv.innerHTML = `
+    <div class="result-card">
+      <div class="skeleton" style="width:40%"></div>
+      <div class="skeleton" style="width:80%"></div>
+      <div class="skeleton" style="width:60%"></div>
+      <div class="skeleton" style="width:70%"></div>
+    </div>
+  `;
 }
 
 function renderError(text) {
   resultsDiv.innerHTML = `<div class="result-error">${text}</div>`;
 }
 
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const resultsDiv = document.getElementById('results');
+
 async function searchDomain(domain) {
-  renderLoading('Загружаю DNS, WHOIS, CT...');
-  const [dns, rdap, ct] = await Promise.all([
+  renderLoading();
+  const [dns, rdap, ct, wayback] = await Promise.all([
     fetchDNS(domain),
     fetchRDAP(domain),
-    fetchCT(domain)
+    fetchCT(domain),
+    fetchWayback(domain)
   ]);
 
   let html = '';
@@ -347,9 +444,7 @@ async function searchDomain(domain) {
   if (dns) {
     html += `<div class="result-card"><h3>DNS</h3><table class="result-table">`;
     for (const [t, vals] of Object.entries(dns)) {
-      if (vals && vals.length) {
-        html += `<tr><td>${t}</td><td>${vals.join('<br>')}</td></tr>`;
-      }
+      if (vals && vals.length) html += `<tr><td>${t}</td><td>${vals.join('<br>')}</td></tr>`;
     }
     html += `</table></div>`;
   }
@@ -380,13 +475,29 @@ async function searchDomain(domain) {
     html += `</div></div>`;
   }
 
-  resultsDiv.innerHTML = html || '<div class="result-card"><p class="result-error">Ничего не найдено.</p></div>';
+  if (wayback) {
+    html += `<div class="result-card"><h3>Wayback Machine</h3><table class="result-table">
+      <tr><td>Последний снимок</td><td>${wayback.timestamp}</td></tr>
+      <tr><td>Ссылка</td><td>${wayback.url}</td></tr>
+    </table></div>`;
+  }
+
+  html += `<div class="result-actions">
+    <button class="action-btn" onclick="copyResult('${domain}')">Копировать домен</button>
+    <button class="action-btn" onclick="exportJSON('${domain}')">Экспорт JSON</button>
+  </div>`;
+
+  resultsDiv.innerHTML = html;
   addHistory(domain);
 }
 
 async function searchIP(ip) {
-  renderLoading('Загружаю данные по IP...');
-  const data = await fetchIPInfo(ip);
+  renderLoading();
+  const [data, shodan] = await Promise.all([
+    fetchIPInfo(ip),
+    fetchShodan(ip)
+  ]);
+
   if (!data || data.status === 'fail') {
     renderError('Не удалось получить данные по IP.');
     return;
@@ -405,20 +516,54 @@ async function searchIP(ip) {
     }
   }
   html += `</table></div>`;
+
+  if (shodan) {
+    html += `<div class="result-card"><h3>Shodan InternetDB</h3><table class="result-table">`;
+    if (shodan.ports.length) html += `<tr><td>Открытые порты</td><td>${shodan.ports.join(', ')}</td></tr>`;
+    if (shodan.hostnames.length) html += `<tr><td>Хосты</td><td>${shodan.hostnames.join('<br>')}</td></tr>`;
+    if (shodan.vulns.length) html += `<tr><td>Уязвимости</td><td>${shodan.vulns.join('<br>')}</td></tr>`;
+    if (shodan.tags.length) html += `<tr><td>Теги</td><td>${shodan.tags.join(', ')}</td></tr>`;
+    html += `</table></div>`;
+  }
+
+  html += `<div class="result-actions">
+    <button class="action-btn" onclick="copyResult('${data.query}')">Копировать IP</button>
+    <button class="action-btn" onclick="exportJSON('${data.query}')">Экспорт JSON</button>
+  </div>`;
+
   resultsDiv.innerHTML = html;
   addHistory(ip);
 }
 
 async function searchEmail(email) {
-  renderLoading('Проверяю email...');
+  renderLoading();
   const domain = email.split('@')[1];
   if (!domain) { renderError('Неверный email.'); return; }
 
-  const dns = await fetchDNS(domain);
+  const [dns, breaches] = await Promise.all([
+    fetchDNS(domain),
+    checkBreaches(email)
+  ]);
+
   let html = `<div class="result-card"><h3>Email: ${email}</h3><table class="result-table">`;
   if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
   if (dns.A) html += `<tr><td>A (домен)</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
+
+  if (breaches && breaches.breaches && breaches.breaches.length) {
+    const list = Array.isArray(breaches.breaches[0]) ? breaches.breaches[0] : breaches.breaches;
+    html += `<div class="result-card"><h3>Утечки (XposedOrNot)</h3><table class="result-table">
+      <tr><td>Найден в утечках</td><td>${list.length}</td></tr>
+      <tr><td>Список</td><td>${list.join('<br>')}</td></tr>
+    </table></div>`;
+  } else {
+    html += `<div class="result-card"><h3>Утечки (XposedOrNot)</h3><p style="color:#6B7280;font-size:13px;">Утечек не найдено.</p></div>`;
+  }
+
+  html += `<div class="result-actions">
+    <button class="action-btn" onclick="copyResult('${email}')">Копировать email</button>
+    <button class="action-btn" onclick="exportJSON('${email}')">Экспорт JSON</button>
+  </div>`;
 
   resultsDiv.innerHTML = html;
   addHistory(email);
@@ -525,7 +670,7 @@ if (clearPreview) {
   });
 }
 
-// ========== ИИ-АНАЛИЗ ТЕКСТА ==========
+// ========== ИИ-АНАЛИЗ ==========
 const aiInput = document.getElementById('aiInput');
 const aiAnalyze = document.getElementById('aiAnalyze');
 const aiReport = document.getElementById('aiReport');
@@ -543,16 +688,50 @@ if (aiAnalyze) {
     let report = 'Анализ завершён.\n\n';
     if (hasImage) {
       report += `🖼 Изображение: ${previewName.textContent}\n`;
-      report += `   EXIF извлечён (см. выше).\n`;
-      report += `   Reverse image search — в разработке.\n\n`;
+      report += `   EXIF извлечён (см. выше).\n\n`;
     }
     if (text) {
       report += `📝 Запрос: ${text}\n`;
       report += `   Тип определён автоматически.\n`;
-      report += `   Автопоиск — в разработке.\n`;
     }
 
     aiReport.textContent = report;
     addHistory(text || previewName.textContent || 'изображение');
   });
+}
+
+// ========== КОПИРОВАНИЕ ==========
+function copyResult(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Скопировано: ' + text);
+    }).catch(() => alert('Ошибка копирования'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('Скопировано: ' + text);
   }
+}
+
+// ========== ЭКСПОРТ JSON ==========
+function exportJSON(selector) {
+  const data = {
+    selector: selector,
+    timestamp: new Date().toISOString(),
+    type: currentType
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `paytina-${selector}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+window.copyResult = copyResult;
+window.exportJSON = exportJSON;
