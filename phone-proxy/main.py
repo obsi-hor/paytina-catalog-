@@ -26,7 +26,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
 GTC_CRED_FILE = os.path.join(BASE_DIR, "credentials.json")
 
-# Копируем credentials.json в ~/.config/gtc/ при старте сервиса
 def setup_credentials():
     config_dir = os.path.expanduser("~/.config/gtc")
     os.makedirs(config_dir, exist_ok=True)
@@ -34,6 +33,9 @@ def setup_credentials():
     if os.path.exists(GTC_CRED_FILE):
         shutil.copy(GTC_CRED_FILE, dst)
         print(f"[setup] credentials copied to {dst}")
+        return True
+    print(f"[setup] credentials.json NOT FOUND at {GTC_CRED_FILE}")
+    return False
 
 setup_credentials()
 
@@ -44,21 +46,42 @@ class PhoneRequest(BaseModel):
 def read_root():
     return {"status": "proxy is running"}
 
-@app.get("/gtc-test")
-def gtc_test():
-    """Проверка: работает ли GetContact CLI."""
+@app.get("/debug")
+def debug():
+    """Показывает состояние бэкенда."""
+    config_dir = os.path.expanduser("~/.config/gtc")
+    creds_path = os.path.join(config_dir, "credentials.json")
+
+    info = {
+        "base_dir": BASE_DIR,
+        "gtc_script_exists": os.path.exists(GTC_SCRIPT),
+        "gtc_cred_file_exists": os.path.exists(GTC_CRED_FILE),
+        "config_dir_exists": os.path.exists(config_dir),
+        "creds_in_config_exists": os.path.exists(creds_path),
+        "base_dir_files": os.listdir(BASE_DIR) if os.path.exists(BASE_DIR) else [],
+    }
+
+    if os.path.exists(creds_path):
+        try:
+            with open(creds_path) as f:
+                data = json.load(f)
+            info["creds_keys"] = list(data.get("credentials", {}).keys())
+        except Exception as e:
+            info["creds_error"] = str(e)
+
+    # Проверяем запуск gtc.py
     try:
-        result = subprocess.run(
-            ["python", GTC_SCRIPT, "--help"],
-            capture_output=True, text=True, timeout=15, cwd=BASE_DIR
+        r = subprocess.run(
+            ["python", GTC_SCRIPT, "search", "+79533950127", "--json", "-t", "tags"],
+            capture_output=True, text=True, timeout=40, cwd=BASE_DIR
         )
-        return {
-            "stdout": result.stdout[:500],
-            "stderr": result.stderr[:500],
-            "code": result.returncode
-        }
+        info["gtc_returncode"] = r.returncode
+        info["gtc_stdout"] = r.stdout[:1000]
+        info["gtc_stderr"] = r.stderr[:1000]
     except Exception as e:
-        return {"error": str(e)}
+        info["gtc_error"] = str(e)
+
+    return info
 
 @app.post("/lookup")
 async def lookup_phone(request: PhoneRequest):
@@ -76,7 +99,6 @@ async def lookup_phone(request: PhoneRequest):
         "error": None
     }
 
-    # ===== GETCONTACT =====
     try:
         r = subprocess.run(
             ["python", GTC_SCRIPT, "search", phone, "--json", "-t", "tags"],
@@ -85,8 +107,15 @@ async def lookup_phone(request: PhoneRequest):
 
         if r.returncode != 0:
             result["getcontact"] = {"error": r.stderr[:500] or "gtc failed"}
+            result["error"] = r.stderr[:500]
         else:
-            data = json.loads(r.stdout)
+            try:
+                data = json.loads(r.stdout)
+            except Exception as e:
+                result["getcontact"] = {"error": f"JSON parse error: {e}. Output: {r.stdout[:300]}"}
+                result["error"] = result["getcontact"]["error"]
+                return result
+
             profile = data.get("result", {}).get("profile", {}) or {}
             tags_raw = data.get("result", {}).get("tags", []) or []
             spam = data.get("result", {}).get("spamInfo", {}) or {}
