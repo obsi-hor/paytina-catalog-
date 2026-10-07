@@ -392,7 +392,7 @@ async function searchEmail(email) {
   addHistory(email);
 }
 
-// ========== ПОИСК НОМЕРА ==========
+// ========== ПОИСК НОМЕРА (обновлённый) ==========
 async function searchPhone(phone) {
   renderLoading();
   try {
@@ -408,7 +408,8 @@ async function searchPhone(phone) {
       return;
     }
 
-    let html = `<div class="result-card"><h3>Номер: ${phone}`;
+    let html = `<div class="result-card">
+      <h3>📱 Номер: ${phone}`;
     if (result.from_cache) {
       html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
     }
@@ -417,61 +418,77 @@ async function searchPhone(phone) {
     // ===== ОПЕРАТОР =====
     const carrier = result.carrier;
     if (carrier && carrier.valid) {
-      html += `<h4 style="color:#3B82F6;font-size:12px;margin:12px 0 8px;">Оператор</h4>
+      html += `<div class="info-block">
+        <h4>📡 Оператор</h4>
         <table class="result-table">
           <tr><td>Оператор</td><td>${carrier.carrier || '—'}</td></tr>
           <tr><td>Регион</td><td>${carrier.region || '—'}</td></tr>
           <tr><td>Страна</td><td>${carrier.country_code || '—'}</td></tr>
           <tr><td>Тип</td><td>${carrier.line_type === 'mobile' ? 'Мобильный' : 'Другой'}</td></tr>
           <tr><td>Формат</td><td>${carrier.formatted || '—'}</td></tr>
-        </table>`;
+        </table>
+      </div>`;
     }
 
     // ===== GETCONTACT =====
     const gc = result.getcontact;
     if (gc && !gc.error) {
-      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Контакты (GetContact)</h4>`;
+      html += `<div class="info-block">
+        <h4>👤 Контакты (GetContact)</h4>`;
+
       if (gc.displayName) {
-        html += `<table class="result-table">
-          <tr><td>Имя</td><td>${gc.displayName}</td></tr>
-          ${gc.tagCount ? `<tr><td>Сохранён раз</td><td>${gc.tagCount}</td></tr>` : ''}
-        </table>`;
+        html += `<div class="big-name">${gc.displayName}</div>`;
+        if (gc.tagCount) {
+          html += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Сохранён у ${gc.tagCount} человек</div>`;
+        }
       } else {
-        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено.</p>`;
+        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено. Номер не сохранён ни у кого из пользователей.</p>`;
       }
-      if (gc.tags && gc.tags.length) {
-        html += `<div class="subdomain-list" style="margin-top:8px;">`;
-        gc.tags.slice(0, 50).forEach(t => {
-          html += `<span>${t.tag}${t.count ? ' ×' + t.count : ''}</span>`;
-        });
-        html += `</div>`;
+
+      if (gc.spamType && gc.spamType !== 'null') {
+        const spamColor = gc.spamDegree === 'high' ? '#EF4444' : '#F59E0B';
+        html += `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${spamColor};">
+          <span style="color:${spamColor};font-size:13px;">⚠ Спам: ${gc.spamType} (${gc.spamDegree})</span>
+        </div>`;
       }
+      html += `</div>`;
     } else if (gc && gc.error) {
-      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Контакты (GetContact)</h4>
-        <p class="result-error">${gc.error}</p>`;
+      html += `<div class="info-block">
+        <h4>👤 Контакты (GetContact)</h4>
+        <p class="result-error">${gc.error}</p>
+      </div>`;
     }
 
     // ===== СОЦСЕТИ =====
     const social = result.social;
     if (social && social.found && social.found.length) {
-      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Соцсети</h4><div class="subdomain-list">`;
+      html += `<div class="info-block">
+        <h4>🌐 Соцсети</h4>
+        <div class="subdomain-list">`;
       social.found.forEach(s => html += `<span>${s}</span>`);
-      html += `</div>`;
+      html += `</div></div>`;
     }
 
     // ===== УТЕЧКИ =====
     const hr = result.hudsonrock;
     if (hr && !hr.error) {
-      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Утечки (Hudson Rock)</h4>`;
+      html += `<div class="info-block">
+        <h4>🔓 Утечки (Hudson Rock)</h4>`;
       if (hr.compromised) {
-        html += `<p style="color:#EF4444;font-size:13px;">Найден в ${hr.count} утечках</p>`;
+        html += `<div style="padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #EF4444;">
+          <span style="color:#EF4444;font-size:13px;">⚠ Найден в ${hr.count} утечках</span>
+        </div>`;
       } else {
-        html += `<p style="color:#22C55E;font-size:13px;">Утечек не найдено</p>`;
+        html += `<div style="padding:8px;border-radius:6px;background:rgba(34,197,94,0.1);border-left:3px solid #22C55E;">
+          <span style="color:#22C55E;font-size:13px;">✅ Утечек не найдено</span>
+        </div>`;
       }
+      html += `</div>`;
     }
 
     html += `<div class="result-actions">
       <button class="action-btn" onclick="copyResult('${phone}')">Копировать</button>
+      <button class="action-btn" onclick="exportJSON('${phone}')">Экспорт JSON</button>
     </div></div>`;
 
     resultsDiv.innerHTML = html;
@@ -714,4 +731,4 @@ function exportJSON(selector) {
 }
 
 window.copyResult = copyResult;
-window.exportJSON = exportJSON
+window.exportJSON = exportJSON;
