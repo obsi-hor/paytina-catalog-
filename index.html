@@ -6,6 +6,8 @@
 <title>paytina-catalog</title>
 <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,10 +29,6 @@
     <line x1="500" y1="500" x2="820" y2="180"/>
     <line x1="500" y1="500" x2="180" y2="820"/>
     <line x1="500" y1="500" x2="820" y2="820"/>
-    <line x1="500" y1="500" x2="150" y2="350"/>
-    <line x1="500" y1="500" x2="850" y2="350"/>
-    <line x1="500" y1="500" x2="150" y2="650"/>
-    <line x1="500" y1="500" x2="850" y2="650"/>
     <polygon points="500,380 620,440 620,560 500,620 380,560 380,440"/>
     <polygon points="500,280 700,390 700,610 500,720 300,610 300,390"/>
     <polygon points="500,180 780,340 780,660 500,820 220,660 220,340"/>
@@ -64,20 +62,20 @@
     <!-- ПОИСК -->
     <div class="section active" id="search">
       <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Домен, IP, email или номер...">
+        <input type="text" id="searchInput" placeholder="Введи домен, IP, email, номер или ник (можно через запятую)...">
         <button id="searchBtn">Искать</button>
       </div>
 
-      <div class="types" id="types">
-        <span class="active" data-type="domain">Домен</span>
-        <span data-type="ip">IP</span>
-        <span data-type="email">Email</span>
-        <span data-type="phone">Номер</span>
+      <!-- ЦЕПОЧКИ -->
+      <div class="playbooks">
+        <span class="pb" data-playbook="domain">🔍 Полный прогон домена</span>
+        <span class="pb" data-playbook="phone">📱 Полный прогон номера</span>
+        <span class="pb" data-playbook="email">📧 Полный прогон email</span>
       </div>
 
       <div class="type-description" id="typeDescription">
-        <h3>Домен</h3>
-        <p>WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.</p>
+        <h3>Универсальный поиск</h3>
+        <p>Введи домен, IP, email, номер или ник — тип определится автоматически. Можно несколько через запятую.</p>
       </div>
 
       <div id="results"></div>
