@@ -34,17 +34,17 @@ GTC_CRED_B64 = os.path.join(BASE_DIR, "credentials.b64")
 CACHE = {}
 CACHE_TTL = 24 * 60 * 60
 
-def cache_get(phone):
-    if phone in CACHE:
-        entry = CACHE[phone]
+def cache_get(key):
+    if key in CACHE:
+        entry = CACHE[key]
         if time.time() - entry["ts"] < CACHE_TTL:
             return entry["data"]
         else:
-            del CACHE[phone]
+            del CACHE[key]
     return None
 
-def cache_set(phone, data):
-    CACHE[phone] = {"data": data, "ts": time.time()}
+def cache_set(key, data):
+    CACHE[key] = {"data": data, "ts": time.time()}
     if len(CACHE) > 500:
         oldest = min(CACHE.keys(), key=lambda k: CACHE[k]["ts"])
         del CACHE[oldest]
@@ -76,7 +76,7 @@ class EmailRequest(BaseModel):
 def read_root():
     return {"status": "proxy is running", "cache_size": len(CACHE)}
 
-# ===== ОПЕРАТОР + РЕГИОН (3) =====
+# ===== ОПЕРАТОР + РЕГИОН =====
 def get_carrier_info(phone):
     try:
         parsed = phonenumbers.parse(phone, None)
@@ -142,7 +142,7 @@ def get_hudsonrock(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ===== IGNORANT — ВСЕ СОЦСЕТИ (4) =====
+# ===== IGNORANT — СОЦСЕТИ =====
 def get_social_networks(phone):
     try:
         clean = phone.replace("+", "")
@@ -167,8 +167,7 @@ def get_social_networks(phone):
         return {"found": found, "raw": r.stdout[:1000]}
     except Exception as e:
         return {"error": str(e)}
-
-# ===== HOLEHE — EMAIL (33) =====
+        # ===== HOLEHE — EMAIL =====
 def get_holehe(email):
     try:
         r = subprocess.run(
@@ -185,7 +184,8 @@ def get_holehe(email):
         return {"found": found, "raw": r.stdout[:1500]}
     except Exception as e:
         return {"error": str(e)}
-        # ===== ЭНДПОИНТ НОМЕРА =====
+
+# ===== ЭНДПОИНТ НОМЕРА =====
 @app.post("/lookup")
 async def lookup_phone(request: PhoneRequest):
     phone = request.phone.strip()
@@ -217,7 +217,7 @@ async def lookup_phone(request: PhoneRequest):
     cache_set(phone, result)
     return result
 
-# ===== ЭНДПОИНТ EMAIL (HOLEHE) =====
+# ===== ЭНДПОИНТ EMAIL =====
 @app.post("/email-lookup")
 async def email_lookup(request: EmailRequest):
     email = request.email.strip()
