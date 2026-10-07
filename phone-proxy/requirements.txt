@@ -5,5 +5,4 @@ cryptography
 colorama
 httpx[http2]
 phonenumbers
-getcontact-cli
-ignorant-ng
+pycryptodome
