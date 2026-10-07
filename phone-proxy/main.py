@@ -31,8 +31,8 @@ GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
 GTC_CRED_B64 = os.path.join(BASE_DIR, "credentials.b64")
 
 # ===== КЭШ =====
-CACHE = {}  # { phone: {"data": ..., "ts": timestamp} }
-CACHE_TTL = 24 * 60 * 60  # 24 часа в секундах
+CACHE = {}
+CACHE_TTL = 24 * 60 * 60
 
 def cache_get(phone):
     if phone in CACHE:
@@ -45,7 +45,6 @@ def cache_get(phone):
 
 def cache_set(phone, data):
     CACHE[phone] = {"data": data, "ts": time.time()}
-    # Ограничиваем размер кэша — максимум 500 записей
     if len(CACHE) > 500:
         oldest = min(CACHE.keys(), key=lambda k: CACHE[k]["ts"])
         del CACHE[oldest]
@@ -93,14 +92,13 @@ def get_carrier_info(phone):
 def get_gtc_data(phone):
     try:
         r = subprocess.run(
-            ["python", GTC_SCRIPT, "search", phone, "--json", "-t", "tags"],
+            ["python", GTC_SCRIPT, "search", phone, "--json", "-t", "profile"],
             capture_output=True, text=True, timeout=60, cwd=BASE_DIR
         )
         if r.returncode != 0:
             return {"error": r.stderr[:300] or "gtc failed"}
         data = json.loads(r.stdout)
         profile = data.get("result", {}).get("profile", {}) or {}
-        tags_raw = data.get("result", {}).get("tags", []) or []
         spam = data.get("result", {}).get("spamInfo", {}) or {}
         return {
             "displayName": profile.get("displayName"),
@@ -110,7 +108,7 @@ def get_gtc_data(phone):
             "email": profile.get("email"),
             "spamType": spam.get("type"),
             "spamDegree": spam.get("degree"),
-            "tags": [{"tag": t.get("tag"), "count": t.get("count")} for t in tags_raw]
+            "tags": []
         }
     except Exception as e:
         return {"error": str(e)}
@@ -165,13 +163,11 @@ async def lookup_phone(request: PhoneRequest):
     if not phone.startswith("+"):
         phone = "+" + phone.lstrip("+")
 
-    # ===== ПРОВЕРКА КЭША =====
     cached = cache_get(phone)
     if cached:
         cached["from_cache"] = True
         return cached
 
-    # ===== ЗАПРОС К ИСТОЧНИКАМ =====
     carrier_info = get_carrier_info(phone)
     gtc_data = get_gtc_data(phone)
     hudson = get_hudsonrock(phone)
