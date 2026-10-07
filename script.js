@@ -54,7 +54,7 @@ const typeDescriptions = {
   domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.' },
   ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · Shodan (порты, уязвимости).' },
   email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot).' },
-  phone:  { title: 'Номер',  text: 'Имя из контактов, теги, спам-статус (GetContact).' }
+  phone:  { title: 'Номер',  text: 'Оператор · имя из контактов · соцсети · утечки (GetContact, Hudson Rock).' }
 };
 
 types.forEach(t => {
@@ -403,40 +403,71 @@ async function searchPhone(phone) {
     });
 
     const result = await response.json();
-
     if (!result.success) {
       renderError('Ошибка: ' + (result.error || 'не удалось получить данные'));
       return;
     }
 
-    let html = `<div class="result-card"><h3>Номер: ${phone}</h3>`;
+    let html = `<div class="result-card"><h3>Номер: ${phone}`;
+    if (result.from_cache) {
+      html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
+    }
+    html += `</h3>`;
+
+    // ===== ОПЕРАТОР =====
+    const carrier = result.carrier;
+    if (carrier && carrier.valid) {
+      html += `<h4 style="color:#3B82F6;font-size:12px;margin:12px 0 8px;">Оператор</h4>
+        <table class="result-table">
+          <tr><td>Оператор</td><td>${carrier.carrier || '—'}</td></tr>
+          <tr><td>Регион</td><td>${carrier.region || '—'}</td></tr>
+          <tr><td>Страна</td><td>${carrier.country_code || '—'}</td></tr>
+          <tr><td>Тип</td><td>${carrier.line_type === 'mobile' ? 'Мобильный' : 'Другой'}</td></tr>
+          <tr><td>Формат</td><td>${carrier.formatted || '—'}</td></tr>
+        </table>`;
+    }
+
+    // ===== GETCONTACT =====
     const gc = result.getcontact;
-
-    if (gc && gc.error) {
-      html += `<p class="result-error">GetContact: ${gc.error}</p>`;
-    } else if (gc) {
+    if (gc && !gc.error) {
+      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Контакты (GetContact)</h4>`;
       if (gc.displayName) {
-        html += `<table class="result-table">`;
-        html += `<tr><td>Имя из контактов</td><td>${gc.displayName}</td></tr>`;
-        if (gc.tagCount) html += `<tr><td>Сохранён раз</td><td>${gc.tagCount}</td></tr>`;
-        if (gc.displayNumber) html += `<tr><td>Формат</td><td>${gc.displayNumber}</td></tr>`;
-        if (gc.countryCode) html += `<tr><td>Страна</td><td>${gc.countryCode}</td></tr>`;
-        if (gc.email) html += `<tr><td>Email</td><td>${gc.email}</td></tr>`;
-        if (gc.spamType) html += `<tr><td>Спам</td><td>${gc.spamType} (${gc.spamDegree})</td></tr>`;
-        html += `</table>`;
+        html += `<table class="result-table">
+          <tr><td>Имя</td><td>${gc.displayName}</td></tr>
+          ${gc.tagCount ? `<tr><td>Сохранён раз</td><td>${gc.tagCount}</td></tr>` : ''}
+        </table>`;
       } else {
-        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено. Номер не сохранён ни у кого из пользователей GetContact.</p>`;
+        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено.</p>`;
       }
-
       if (gc.tags && gc.tags.length) {
-        html += `<h3 style="margin-top:16px;">Теги (${gc.tags.length})</h3><div class="subdomain-list">`;
-        gc.tags.slice(0, 100).forEach(t => {
+        html += `<div class="subdomain-list" style="margin-top:8px;">`;
+        gc.tags.slice(0, 50).forEach(t => {
           html += `<span>${t.tag}${t.count ? ' ×' + t.count : ''}</span>`;
         });
         html += `</div>`;
       }
-    } else {
-      html += `<p style="color:#6B7280;font-size:13px;">Данных не найдено.</p>`;
+    } else if (gc && gc.error) {
+      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Контакты (GetContact)</h4>
+        <p class="result-error">${gc.error}</p>`;
+    }
+
+    // ===== СОЦСЕТИ =====
+    const social = result.social;
+    if (social && social.found && social.found.length) {
+      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Соцсети</h4><div class="subdomain-list">`;
+      social.found.forEach(s => html += `<span>${s}</span>`);
+      html += `</div>`;
+    }
+
+    // ===== УТЕЧКИ =====
+    const hr = result.hudsonrock;
+    if (hr && !hr.error) {
+      html += `<h4 style="color:#3B82F6;font-size:12px;margin:16px 0 8px;">Утечки (Hudson Rock)</h4>`;
+      if (hr.compromised) {
+        html += `<p style="color:#EF4444;font-size:13px;">Найден в ${hr.count} утечках</p>`;
+      } else {
+        html += `<p style="color:#22C55E;font-size:13px;">Утечек не найдено</p>`;
+      }
     }
 
     html += `<div class="result-actions">
@@ -683,4 +714,4 @@ function exportJSON(selector) {
 }
 
 window.copyResult = copyResult;
-window.exportJSON = exportJSON;
+window.exportJSON = exportJSON
