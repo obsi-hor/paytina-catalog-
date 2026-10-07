@@ -29,14 +29,13 @@ const graphResetBtn = document.getElementById('graphReset');
 
 const PROXY_URL = 'https://paytina-catalog-phone-proxy.onrender.com';
 
-// ========== АВТООПРЕДЕЛЕНИЕ ТИПА (27) ==========
+// ========== АВТООПРЕДЕЛЕНИЕ ТИПА ==========
 function detectType(value) {
   const v = value.trim();
   if (!v) return null;
   if (v.includes('@')) return 'email';
   if (/^\+?[\d\s\-\(\)]{7,}$/.test(v)) return 'phone';
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v)) return 'ip';
-  if (v.startsWith('@') || /^[a-z0-9_\.]{3,30}$/i.test(v)) return 'nick';
   if (v.includes('.')) return 'domain';
   return 'domain';
 }
@@ -50,10 +49,7 @@ navItems.forEach(item => {
     const target = document.getElementById(item.dataset.section);
     if (target) target.classList.add('active');
     if (item.dataset.section === 'graph') {
-      setTimeout(() => {
-        if (!cy) initGraph();
-        if (cy) cy.resize();
-      }, 100);
+      setTimeout(() => { if (!cy) initGraph(); if (cy) cy.resize(); }, 100);
     }
   });
 });
@@ -68,7 +64,6 @@ langs.forEach(l => {
     localStorage.setItem('lang', l.dataset.lang);
   });
 });
-
 const savedLang = localStorage.getItem('lang');
 if (savedLang) {
   langs.forEach(x => x.classList.toggle('active', x.dataset.lang === savedLang));
@@ -92,18 +87,18 @@ if (themeToggle) {
 
 // ========== КАТАЛОГ ==========
 const tools = [
-  { name: 'Shodan',       desc: 'Поиск устройств и открытых портов', url: 'https://shodan.io',          tag: 'сеть' },
-  { name: 'Censys',       desc: 'Сканирование интернета',           url: 'https://search.censys.io',   tag: 'сеть' },
-  { name: 'crt.sh',       desc: 'Certificate Transparency',         url: 'https://crt.sh',             tag: 'домены' },
-  { name: 'VirusTotal',   desc: 'Репутация доменов и IP',           url: 'https://virustotal.com',     tag: 'репутация' },
-  { name: 'urlscan.io',   desc: 'Анализ сайтов',                    url: 'https://urlscan.io',         tag: 'веб' },
-  { name: 'HIBP',         desc: 'Проверка email в утечках',         url: 'https://haveibeenpwned.com', tag: 'утечки' },
-  { name: 'Sherlock',     desc: 'Поиск по нику',                    url: 'https://github.com/sherlock-project/sherlock', tag: 'соцсети' },
-  { name: 'Holehe',       desc: 'Email на площадках',               url: 'https://github.com/megadose/holehe', tag: 'почта' },
-  { name: 'DNSDumpster',  desc: 'Карта DNS',                        url: 'https://dnsdumpster.com',    tag: 'домены' },
-  { name: 'Wayback',      desc: 'Архив сайтов',                     url: 'https://web.archive.org',    tag: 'архив' },
-  { name: 'IPinfo',       desc: 'Гео и ASN для IP',                 url: 'https://ipinfo.io',          tag: 'сеть' },
-  { name: 'BGPView',      desc: 'ASN и маршруты BGP',               url: 'https://bgpview.io',         tag: 'сеть' }
+  { name: 'Shodan',       desc: 'Устройства и порты',  url: 'https://shodan.io',          tag: 'сеть' },
+  { name: 'Censys',       desc: 'Сканирование',         url: 'https://search.censys.io',   tag: 'сеть' },
+  { name: 'crt.sh',       desc: 'CT-логи',              url: 'https://crt.sh',             tag: 'домены' },
+  { name: 'VirusTotal',   desc: 'Репутация',            url: 'https://virustotal.com',     tag: 'репутация' },
+  { name: 'urlscan.io',   desc: 'Анализ сайтов',        url: 'https://urlscan.io',         tag: 'веб' },
+  { name: 'HIBP',         desc: 'Утечки email',         url: 'https://haveibeenpwned.com', tag: 'утечки' },
+  { name: 'Sherlock',     desc: 'Поиск по нику',        url: 'https://github.com/sherlock-project/sherlock', tag: 'соцсети' },
+  { name: 'Holehe',       desc: 'Email на площадках',   url: 'https://github.com/megadose/holehe', tag: 'почта' },
+  { name: 'DNSDumpster',  desc: 'Карта DNS',            url: 'https://dnsdumpster.com',    tag: 'домены' },
+  { name: 'Wayback',      desc: 'Архив сайтов',         url: 'https://web.archive.org',    tag: 'архив' },
+  { name: 'IPinfo',       desc: 'Гео и ASN',            url: 'https://ipinfo.io',          tag: 'сеть' },
+  { name: 'BGPView',      desc: 'ASN и BGP',            url: 'https://bgpview.io',         tag: 'сеть' }
 ];
 if (catalogGrid) {
   tools.forEach(t => {
@@ -118,10 +113,7 @@ if (catalogGrid) {
 }
 
 // ========== ИСТОРИЯ ==========
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('history') || '[]'); }
-  catch { return []; }
-}
+function getHistory() { try { return JSON.parse(localStorage.getItem('history') || '[]'); } catch { return []; } }
 function saveHistory(h) { localStorage.setItem('history', JSON.stringify(h)); }
 function renderHistory() {
   const h = getHistory();
@@ -144,6 +136,7 @@ renderHistory();
 if (clearBtn) {
   clearBtn.addEventListener('click', () => { localStorage.removeItem('history'); renderHistory(); });
 }
+
 // ========== API-ФУНКЦИИ ==========
 async function fetchDNS(domain) {
   const recTypes = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA'];
@@ -158,11 +151,8 @@ async function fetchDNS(domain) {
   return out;
 }
 async function fetchRDAP(domain) {
-  try {
-    const r = await fetch(`https://rdap.org/domain/${domain}`);
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (e) { return null; }
+  try { const r = await fetch(`https://rdap.org/domain/${domain}`); if (!r.ok) return null; return await r.json(); }
+  catch (e) { return null; }
 }
 async function fetchCT(domain) {
   try {
@@ -170,12 +160,10 @@ async function fetchCT(domain) {
     const j = await r.json();
     const subs = new Set();
     j.forEach(item => {
-      if (item.name_value) {
-        item.name_value.split('\n').forEach(n => {
-          n = n.trim().toLowerCase();
-          if (n && n.endsWith(domain)) subs.add(n);
-        });
-      }
+      if (item.name_value) item.name_value.split('\n').forEach(n => {
+        n = n.trim().toLowerCase();
+        if (n && n.endsWith(domain)) subs.add(n);
+      });
     });
     return Array.from(subs).sort();
   } catch (e) { return []; }
@@ -186,13 +174,11 @@ async function fetchIPInfo(ip) {
     const j = await r.json();
     if (!j.success) return null;
     return {
-      query: j.ip, country: j.country, countryCode: j.country_code,
-      regionName: j.region, city: j.city, zip: j.postal,
+      query: j.ip, country: j.country, regionName: j.region, city: j.city,
       lat: j.latitude, lon: j.longitude, timezone: j.timezone?.id,
       isp: j.connection?.isp, org: j.connection?.org,
       as: j.connection?.asn ? 'AS' + j.connection.asn : '',
-      asname: j.connection?.domain,
-      proxy: j.security?.proxy, hosting: j.security?.hosting
+      asname: j.connection?.domain, proxy: j.security?.proxy, hosting: j.security?.hosting
     };
   } catch (e) { return null; }
 }
@@ -201,7 +187,7 @@ async function fetchShodan(ip) {
     const r = await fetch(`https://internetdb.shodan.io/${ip}`);
     if (!r.ok) return null;
     const j = await r.json();
-    return { ports: j.ports || [], hostnames: j.hostnames || [], vulns: j.vulns || [], tags: j.tags || [] };
+    return { ports: j.ports || [], hostnames: j.hostnames || [], vulns: j.vulns || [] };
   } catch (e) { return null; }
 }
 async function fetchWayback(domain) {
@@ -218,7 +204,6 @@ async function checkBreaches(email) {
     return await r.json();
   } catch (e) { return null; }
 }
-
 // ========== РЕНДЕР ==========
 function renderLoading() {
   if (!resultsDiv) return;
@@ -231,27 +216,6 @@ function renderLoading() {
 function renderError(text) {
   if (!resultsDiv) return;
   resultsDiv.innerHTML = `<div class="result-error">${text}</div>`;
-}
-
-// ========== ПИВОТЫ (29) ==========
-function buildPivots(type, value) {
-  let html = `<div class="pivots">`;
-  if (type === 'domain') {
-    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'shodan-domain')">🔍 IP через Shodan</span>`;
-    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'ct')">📜 Все поддомены</span>`;
-  }
-  if (type === 'email') {
-    const d = value.split('@')[1];
-    if (d) {
-      html += `<span class="pivot-btn" onclick="doSearch('${d}', 'domain')">🌐 Домен email</span>`;
-      html += `<span class="pivot-btn" onclick="doSearch('${value}', 'breaches')">🔓 Утечки</span>`;
-    }
-  }
-  if (type === 'ip') {
-    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'shodan')">🔍 Shodan</span>`;
-  }
-  html += `</div>`;
-  return html;
 }
 
 // ========== ПОИСК ДОМЕНА ==========
@@ -270,7 +234,6 @@ async function searchDomain(domain) {
   if (rdap) {
     html += `<div class="info-block"><h4>WHOIS / RDAP</h4><table class="result-table">`;
     if (rdap.ldhName) html += `<tr><td>Домен</td><td>${rdap.ldhName}</td></tr>`;
-    if (rdap.status) html += `<tr><td>Статус</td><td>${rdap.status.join(', ')}</td></tr>`;
     if (rdap.registrar) html += `<tr><td>Регистратор</td><td>${rdap.registrar}</td></tr>`;
     if (rdap.events) rdap.events.forEach(e => {
       if (e.eventAction === 'registration') html += `<tr><td>Создан</td><td>${e.eventDate}</td></tr>`;
@@ -280,19 +243,17 @@ async function searchDomain(domain) {
   }
   if (ct.length) {
     html += `<div class="info-block"><h4>Certificate Transparency (${ct.length})</h4><div class="subdomain-list">`;
-    ct.slice(0, 200).forEach(s => html += `<span>${s}</span>`);
+    ct.slice(0, 100).forEach(s => html += `<span>${s}</span>`);
     html += `</div></div>`;
   }
   if (wayback) {
-    html += `<div class="info-block"><h4>Wayback Machine</h4><table class="result-table">
-      <tr><td>Последний снимок</td><td>${wayback.timestamp}</td></tr>
+    html += `<div class="info-block"><h4>Wayback</h4><table class="result-table">
+      <tr><td>Снимок</td><td>${wayback.timestamp}</td></tr>
       <tr><td>Ссылка</td><td>${wayback.url}</td></tr>
     </table></div>`;
   }
-  html += buildPivots('domain', domain);
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${domain}')">Копировать</button>
-    <button class="action-btn" onclick="exportJSON('${domain}')">Экспорт JSON</button>
   </div></div>`;
   return html;
 }
@@ -304,9 +265,9 @@ async function searchIP(ip) {
   let html = `<div class="result-card"><h3>📍 IP: ${ip}</h3>`;
   html += `<div class="info-block"><h4>Геолокация</h4><table class="result-table">`;
   const fields = {
-    country: 'Страна', regionName: 'Регион', city: 'Город', zip: 'Индекс',
+    country: 'Страна', regionName: 'Регион', city: 'Город',
     lat: 'Широта', lon: 'Долгота', timezone: 'Часовой пояс',
-    isp: 'Провайдер', org: 'Организация', as: 'AS', asname: 'Имя AS',
+    isp: 'Провайдер', org: 'Организация', as: 'AS',
     proxy: 'Прокси/VPN', hosting: 'Хостинг'
   };
   for (const [k, label] of Object.entries(fields)) {
@@ -316,8 +277,8 @@ async function searchIP(ip) {
   }
   html += `</table></div>`;
   if (shodan) {
-    html += `<div class="info-block"><h4>Shodan InternetDB</h4><table class="result-table">`;
-    if (shodan.ports.length) html += `<tr><td>Открытые порты</td><td>${shodan.ports.join(', ')}</td></tr>`;
+    html += `<div class="info-block"><h4>Shodan</h4><table class="result-table">`;
+    if (shodan.ports.length) html += `<tr><td>Порты</td><td>${shodan.ports.join(', ')}</td></tr>`;
     if (shodan.hostnames.length) html += `<tr><td>Хосты</td><td>${shodan.hostnames.join('<br>')}</td></tr>`;
     if (shodan.vulns.length) html += `<tr><td>Уязвимости</td><td>${shodan.vulns.join('<br>')}</td></tr>`;
     html += `</table></div>`;
@@ -327,21 +288,16 @@ async function searchIP(ip) {
     html += `<div id="${mapId}" style="height:250px;border-radius:8px;margin-top:12px;border:1px solid #1A2028;"></div>`;
     setTimeout(() => renderIPMap(mapId, data.lat, data.lon, ip), 200);
   }
-  html += buildPivots('ip', ip);
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${ip}')">Копировать</button>
-    <button class="action-btn" onclick="exportJSON('${ip}')">Экспорт JSON</button>
   </div></div>`;
   return html;
 }
-
 function renderIPMap(id, lat, lon, ip) {
   const el = document.getElementById(id);
   if (!el || typeof L === 'undefined') return;
   const map = L.map(id).setView([lat, lon], 8);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
   L.marker([lat, lon]).addTo(map).bindPopup(ip).openPopup();
 }
 
@@ -355,6 +311,7 @@ async function searchEmail(email) {
   if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
   if (dns.A) html += `<tr><td>A</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
+
   if (breaches && breaches.breaches && breaches.breaches.length) {
     const list = Array.isArray(breaches.breaches[0]) ? breaches.breaches[0] : breaches.breaches;
     html += `<div class="info-block"><h4>Утечки (XposedOrNot)</h4><table class="result-table">
@@ -362,10 +319,24 @@ async function searchEmail(email) {
       <tr><td>Список</td><td>${list.join('<br>')}</td></tr>
     </table></div>`;
   }
-  html += buildPivots('email', email);
+
+  // ===== HOLEHE =====
+  try {
+    const r = await fetch(`${PROXY_URL}/email-lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    const res = await r.json();
+    if (res.success && res.holehe && res.holehe.found && res.holehe.found.length) {
+      html += `<div class="info-block"><h4>🔎 Регистрации (Holehe)</h4><div class="subdomain-list">`;
+      res.holehe.found.forEach(s => html += `<span>${s}</span>`);
+      html += `</div></div>`;
+    }
+  } catch (e) {}
+
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${email}')">Копировать</button>
-    <button class="action-btn" onclick="exportJSON('${email}')">Экспорт JSON</button>
   </div></div>`;
   return html;
 }
@@ -379,7 +350,7 @@ async function searchPhone(phone) {
       body: JSON.stringify({ phone: phone })
     });
     const result = await response.json();
-    if (!result.success) return `<div class="result-error">Ошибка номера ${phone}</div>`;
+    if (!result.success) return `<div class="result-error">Ошибка: ${phone}</div>`;
 
     let html = `<div class="result-card"><h3>📱 Номер: ${phone}`;
     if (result.from_cache) html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
@@ -408,14 +379,11 @@ async function searchPhone(phone) {
       if (gc.spamType && gc.spamType !== 'null') {
         const col = gc.spamDegree === 'high' ? '#EF4444' : '#F59E0B';
         html += `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${col};">
-          <span style="color:${col};font-size:13px;">⚠ Спам: ${gc.spamType} (${gc.spamDegree})</span></div>`;
+          <span style="color:${col};font-size:13px;">⚠ Спам: ${gc.spamType}</span></div>`;
       }
       html += `</div>`;
-    } else if (gc && gc.error) {
-      html += `<div class="info-block"><h4>👤 Контакты (GetContact)</h4><p class="result-error">${gc.error}</p></div>`;
     }
 
-    // Соцсети
     const social = result.social;
     if (social && social.found && social.found.length) {
       html += `<div class="info-block"><h4>🌐 Соцсети</h4><div class="subdomain-list">`;
@@ -423,10 +391,9 @@ async function searchPhone(phone) {
       html += `</div></div>`;
     }
 
-    // Утечки
     const hr = result.hudsonrock;
     if (hr && !hr.error) {
-      html += `<div class="info-block"><h4>🔓 Утечки (Hudson Rock)</h4>`;
+      html += `<div class="info-block"><h4>🔓 Утечки</h4>`;
       if (hr.compromised) {
         html += `<div style="padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #EF4444;">
           <span style="color:#EF4444;font-size:13px;">⚠ Найден в ${hr.count} утечках</span></div>`;
@@ -437,49 +404,42 @@ async function searchPhone(phone) {
       html += `</div>`;
     }
 
-    // Кнопки мессенджеров (10)
     const cleanPhone = phone.replace(/[^\d]/g, '');
     html += `<div class="messenger-buttons">
-      <a class="msg-btn" href="https://t.me/+${cleanPhone}" target="_blank" rel="noopener">✈️ Telegram</a>
-      <a class="msg-btn" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a class="msg-btn" href="https://t.me/+${cleanPhone}" target="_blank">✈️ Telegram</a>
+      <a class="msg-btn" href="https://wa.me/${cleanPhone}" target="_blank">💬 WhatsApp</a>
     </div>`;
 
     html += `<div class="result-actions">
       <button class="action-btn" onclick="copyResult('${phone}')">Копировать</button>
-      <button class="action-btn" onclick="exportJSON('${phone}')">Экспорт JSON</button>
     </div></div>`;
     return html;
   } catch (e) {
     return `<div class="result-error">Прокси засыпает. Подожди минуту.</div>`;
   }
-                                                                  }
-// ========== ГЛАВНЫЙ ЗАПУСК ПОИСКА (27 + 28) ==========
+}
+
+// ========== ГЛАВНЫЙ ЗАПУСК ==========
 async function performSearch(query) {
   const type = detectType(query);
-  if (!type) return `<div class="result-error">Не удалось определить тип: ${query}</div>`;
   if (type === 'domain') return await searchDomain(query);
   if (type === 'ip') return await searchIP(query);
   if (type === 'email') return await searchEmail(query);
   if (type === 'phone') return await searchPhone(query);
-  if (type === 'nick') return `<div class="result-error">Поиск по нику пока в разработке.</div>`;
-  return `<div class="result-error">Неизвестный тип: ${query}</div>`;
+  return `<div class="result-error">Не удалось определить тип: ${query}</div>`;
 }
 
-async function doSearch(value, forcedType) {
+async function doSearch(value) {
   const parts = value.split(',').map(s => s.trim()).filter(Boolean);
   renderLoading();
-
   if (parts.length === 1) {
-    const html = await performSearch(parts[0]);
-    resultsDiv.innerHTML = html;
+    resultsDiv.innerHTML = await performSearch(parts[0]);
     addHistory(parts[0]);
     return;
   }
-
-  // Мультиселектор (28)
-  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length} запросов</div>`;
+  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length}</div>`;
   const results = await Promise.all(parts.map(p => performSearch(p)));
-  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length} запросов</div>` + results.join('');
+  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length}</div>` + results.join('');
   parts.forEach(p => addHistory(p));
 }
 
@@ -489,36 +449,23 @@ if (searchBtn) {
     if (!val) return;
     doSearch(val);
   });
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') searchBtn.click();
-  });
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchBtn.click(); });
 }
 
-// ========== ЦЕПОЧКИ (30) ==========
+// ========== ЦЕПОЧКИ ==========
 document.querySelectorAll('.playbooks .pb').forEach(el => {
   el.addEventListener('click', async () => {
-    const pb = el.dataset.playbook;
     const val = searchInput.value.trim();
-    if (!val) { alert('Введи домен, номер или email'); return; }
+    if (!val) { alert('Введи значение'); return; }
     renderLoading();
-
-    let html = `<div class="multi-header">Цепочка: ${pb}</div>`;
-    if (pb === 'domain') {
-      html += await searchDomain(val);
-    } else if (pb === 'phone') {
-      html += await searchPhone(val);
-    } else if (pb === 'email') {
-      html += await searchEmail(val);
-    }
-    resultsDiv.innerHTML = html;
-    addHistory(val + ' [' + pb + ']');
+    resultsDiv.innerHTML = await performSearch(val);
+    addHistory(val + ' [' + el.dataset.playbook + ']');
   });
 });
 
 // ========== ГРАФ ==========
 let cy = null;
-const COLORS = { domain: '#3B82F6', ip: '#22C55E', email: '#F59E0B', nick: '#A855F7', phone: '#EF4444' };
-
+const COLORS = { domain: '#3B82F6', ip: '#22C55E', email: '#F59E0B', phone: '#EF4444' };
 function initGraph() {
   const container = document.getElementById('cy');
   if (!container) return;
@@ -539,11 +486,9 @@ function initGraph() {
         'text-outline-width': 2, 'text-outline-color': '#050608'
       }}
     ],
-    layout: { name: 'cose', animate: true },
-    wheelSensitivity: 0.2
+    layout: { name: 'cose', animate: true }, wheelSensitivity: 0.2
   });
 }
-
 async function buildGraph(selector) {
   if (!cy) initGraph();
   if (!cy) return;
@@ -552,16 +497,13 @@ async function buildGraph(selector) {
   const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(selector);
   const rootType = isIP ? 'ip' : 'domain';
   nodes.push({ data: { id: 'root', label: selector, type: rootType, color: COLORS[rootType] } });
-
   if (isIP) {
     const shodan = await fetchShodan(selector);
-    if (shodan) {
-      shodan.hostnames.forEach((h, i) => {
-        const id = 'host' + i;
-        nodes.push({ data: { id, label: h, type: 'domain', color: COLORS.domain } });
-        edges.push({ data: { source: id, target: 'root', label: 'resolves' } });
-      });
-    }
+    if (shodan) shodan.hostnames.forEach((h, i) => {
+      const id = 'host' + i;
+      nodes.push({ data: { id, label: h, type: 'domain', color: COLORS.domain } });
+      edges.push({ data: { source: id, target: 'root', label: 'resolves' } });
+    });
   } else {
     const dns = await fetchDNS(selector);
     if (dns.A) dns.A.forEach((ip, i) => {
@@ -579,19 +521,13 @@ async function buildGraph(selector) {
   cy.add([...nodes, ...edges]);
   cy.layout({ name: 'cose', animate: true, padding: 30 }).run();
 }
-
-if (graphBuildBtn) {
-  graphBuildBtn.addEventListener('click', async () => {
-    const val = graphInput.value.trim() || 'example.com';
-    await buildGraph(val);
-  });
-}
-if (graphResetBtn) {
-  graphResetBtn.addEventListener('click', () => {
-    if (cy) cy.elements().remove();
-    graphInput.value = '';
-  });
-}
+if (graphBuildBtn) graphBuildBtn.addEventListener('click', async () => {
+  await buildGraph(graphInput.value.trim() || 'example.com');
+});
+if (graphResetBtn) graphResetBtn.addEventListener('click', () => {
+  if (cy) cy.elements().remove();
+  graphInput.value = '';
+});
 
 // ========== EXIF ==========
 function handleFile(file) {
@@ -602,9 +538,7 @@ function handleFile(file) {
     previewName.textContent = file.name;
     preview.classList.remove('hidden');
     if (typeof EXIF !== 'undefined') {
-      EXIF.getData(previewImg, function () {
-        renderExif(EXIF.getAllTags(this), file);
-      });
+      EXIF.getData(previewImg, function () { renderExif(EXIF.getAllTags(this), file); });
     }
   };
   reader.readAsDataURL(file);
@@ -615,8 +549,7 @@ function renderExif(tags, file) {
     ExposureTime: 'Выдержка', FNumber: 'Диафрагма', ISOSpeedRatings: 'ISO',
     FocalLength: 'Фокусное расстояние', Flash: 'Вспышка',
     GPSLatitude: 'GPS широта', GPSLongitude: 'GPS долгота',
-    GPSAltitude: 'GPS высота', Software: 'Софт',
-    Orientation: 'Ориентация', LensModel: 'Объектив'
+    GPSAltitude: 'GPS высота', Software: 'Софт'
   };
   let html = `<div class="result-card"><h3>EXIF — ${file.name}</h3><table class="result-table">`;
   let found = false;
@@ -642,9 +575,7 @@ if (uploadBox && fileInput) {
     uploadBox.classList.remove('dragover');
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
   });
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length) handleFile(fileInput.files[0]);
-  });
+  fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
 }
 if (clearPreview) {
   clearPreview.addEventListener('click', () => {
@@ -655,21 +586,21 @@ if (clearPreview) {
   });
 }
 
-// ========== ИИ-АНАЛИЗ ==========
+// ========== ИИ ==========
 if (aiAnalyze) {
   aiAnalyze.addEventListener('click', () => {
     const text = aiInput.value.trim();
     const hasImage = !preview.classList.contains('hidden');
     if (!text && !hasImage) { alert('Введи текст или загрузи фото.'); return; }
     let report = 'Анализ завершён.\n\n';
-    if (hasImage) report += `🖼 Изображение: ${previewName.textContent}\n   EXIF извлечён.\n\n`;
-    if (text) report += `📝 Запрос: ${text}\n`;
+    if (hasImage) report += `🖼 ${previewName.textContent}\nEXIF извлечён.\n\n`;
+    if (text) report += `📝 ${text}\n`;
     aiReport.textContent = report;
     addHistory(text || previewName.textContent || 'изображение');
   });
 }
 
-// ========== КОПИРОВАНИЕ И ЭКСПОРТ ==========
+// ========== КОПИРОВАНИЕ ==========
 function copyResult(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text)).catch(() => alert('Ошибка'));
@@ -683,16 +614,4 @@ function copyResult(text) {
     alert('Скопировано: ' + text);
   }
 }
-function exportJSON(selector) {
-  const data = { selector, timestamp: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `paytina-${selector}-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 window.copyResult = copyResult;
-window.exportJSON = exportJSON;
-window.doSearch = doSearch;
