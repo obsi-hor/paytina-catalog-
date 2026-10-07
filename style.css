@@ -622,3 +622,116 @@ body.light .web-bg { opacity: 0.08; }
   margin-bottom: 4px;
   text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
+/* Playbooks */
+.playbooks {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.playbooks .pb {
+  font-size: 12px;
+  color: #3B82F6;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.playbooks .pb:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3B82F6;
+}
+
+/* Инфо-блоки (для номера) */
+.info-block {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1A2028;
+}
+.info-block:last-of-type { border-bottom: none; }
+.info-block h4 {
+  font-size: 12px;
+  color: #3B82F6;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.big-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #E8EAED;
+  margin-bottom: 4px;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+/* Кнопки мессенджеров */
+.messenger-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.msg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 1px solid #1A2028;
+  color: #8A93A0;
+}
+.msg-btn:hover { border-color: #3B82F6; color: #3B82F6; }
+
+/* Пивоты */
+.pivots {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.pivot-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3B82F6;
+  cursor: pointer;
+}
+.pivot-btn:hover { background: rgba(59, 130, 246, 0.2); }
+
+/* Мультирезультаты */
+.multi-header {
+  font-size: 12px;
+  color: #6B7280;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(16, 20, 26, 0.6);
+  border-radius: 6px;
+  border-left: 3px solid #3B82F6;
+}
+
+/* Карта */
+#ipMap {
+  width: 100%;
+  height: 250px;
+  border-radius: 8px;
+  margin-top: 12px;
+  border: 1px solid #1A2028;
+}
+
+/* Фото профиля */
+.profile-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #3B82F6;
+  margin-right: 12px;
+  float: left;
+}
