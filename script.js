@@ -54,7 +54,7 @@ const typeDescriptions = {
   domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.' },
   ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · Shodan (порты, уязвимости).' },
   email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot).' },
-  phone:  { title: 'Номер',  text: 'Имя из контактов, соцсети, спам-статус (Sync.ME, CallerID, CallApp, Truecaller).' }
+  phone:  { title: 'Номер',  text: 'Имя из контактов, теги, спам-статус (GetContact).' }
 };
 
 types.forEach(t => {
@@ -295,15 +295,9 @@ async function searchDomain(domain) {
       rdap.events.forEach(e => {
         if (e.eventAction === 'registration') html += `<tr><td>Создан</td><td>${e.eventDate}</td></tr>`;
         if (e.eventAction === 'expiration') html += `<tr><td>Истекает</td><td>${e.eventDate}</td></tr>`;
-        if (e.eventAction === 'last changed') html += `<tr><td>Изменён</td><td>${e.eventDate}</td></tr>`;
       });
     }
-    if (rdap.nameservers) {
-      html += `<tr><td>NS</td><td>${rdap.nameservers.map(n => n.ldhName).join('<br>')}</td></tr>`;
-    }
     html += `</table></div>`;
-  } else {
-    html += `<div class="result-card"><h3>WHOIS / RDAP</h3><p class="result-error">Домен не зарегистрирован.</p></div>`;
   }
 
   if (ct.length) {
@@ -354,7 +348,6 @@ async function searchIP(ip) {
     if (shodan.ports.length) html += `<tr><td>Открытые порты</td><td>${shodan.ports.join(', ')}</td></tr>`;
     if (shodan.hostnames.length) html += `<tr><td>Хосты</td><td>${shodan.hostnames.join('<br>')}</td></tr>`;
     if (shodan.vulns.length) html += `<tr><td>Уязвимости</td><td>${shodan.vulns.join('<br>')}</td></tr>`;
-    if (shodan.tags.length) html += `<tr><td>Теги</td><td>${shodan.tags.join(', ')}</td></tr>`;
     html += `</table></div>`;
   }
 
@@ -417,15 +410,33 @@ async function searchPhone(phone) {
     }
 
     let html = `<div class="result-card"><h3>Номер: ${phone}</h3>`;
+    const gc = result.getcontact;
 
-    if (result.raw_output && result.raw_output.trim()) {
-      const escaped = result.raw_output
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      html += `<pre style="white-space:pre-wrap;font-size:12px;color:#E8EAED;font-family:'JetBrains Mono',monospace;line-height:1.6;">${escaped}</pre>`;
+    if (gc && gc.error) {
+      html += `<p class="result-error">GetContact: ${gc.error}</p>`;
+    } else if (gc) {
+      if (gc.displayName) {
+        html += `<table class="result-table">`;
+        html += `<tr><td>Имя из контактов</td><td>${gc.displayName}</td></tr>`;
+        if (gc.tagCount) html += `<tr><td>Сохранён раз</td><td>${gc.tagCount}</td></tr>`;
+        if (gc.displayNumber) html += `<tr><td>Формат</td><td>${gc.displayNumber}</td></tr>`;
+        if (gc.countryCode) html += `<tr><td>Страна</td><td>${gc.countryCode}</td></tr>`;
+        if (gc.email) html += `<tr><td>Email</td><td>${gc.email}</td></tr>`;
+        if (gc.spamType) html += `<tr><td>Спам</td><td>${gc.spamType} (${gc.spamDegree})</td></tr>`;
+        html += `</table>`;
+      } else {
+        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено. Номер не сохранён ни у кого из пользователей GetContact.</p>`;
+      }
+
+      if (gc.tags && gc.tags.length) {
+        html += `<h3 style="margin-top:16px;">Теги (${gc.tags.length})</h3><div class="subdomain-list">`;
+        gc.tags.slice(0, 100).forEach(t => {
+          html += `<span>${t.tag}${t.count ? ' ×' + t.count : ''}</span>`;
+        });
+        html += `</div>`;
+      }
     } else {
-      html += `<p style="color:#6B7280;font-size:13px;">Данных не найдено. Возможно, номер не сохранён ни у кого из пользователей баз.</p>`;
+      html += `<p style="color:#6B7280;font-size:13px;">Данных не найдено.</p>`;
     }
 
     html += `<div class="result-actions">
@@ -543,11 +554,6 @@ async function buildGraph(selector) {
       const id = 'ns' + i;
       nodes.push({ data: { id, label: ns, type: 'domain', color: COLORS.domain } });
       edges.push({ data: { source: 'root', target: id, label: 'NS' } });
-    });
-    if (dns.CNAME) dns.CNAME.forEach((c, i) => {
-      const id = 'cn' + i;
-      nodes.push({ data: { id, label: c, type: 'domain', color: COLORS.domain } });
-      edges.push({ data: { source: 'root', target: id, label: 'CNAME' } });
     });
   }
 
