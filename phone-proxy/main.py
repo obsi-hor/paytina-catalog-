@@ -1,6 +1,7 @@
 import io
 import os
 import json
+import base64
 import shutil
 import subprocess
 import contextlib
@@ -24,17 +25,40 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
+GTC_CRED_B64 = os.path.join(BASE_DIR, "credentials.b64")
 GTC_CRED_FILE = os.path.join(BASE_DIR, "credentials.json")
 
 def setup_credentials():
     config_dir = os.path.expanduser("~/.config/gtc")
     os.makedirs(config_dir, exist_ok=True)
     dst = os.path.join(config_dir, "credentials.json")
-    if os.path.exists(GTC_CRED_FILE):
-        shutil.copy(GTC_CRED_FILE, dst)
-        print(f"[setup] credentials copied to {dst}")
+
+    # Приоритет: base64 → JSON
+    if os.path.exists(GTC_CRED_B64):
+        with open(GTC_CRED_B64, "r") as f:
+            b64 = f.read().strip()
+        decoded = base64.b64decode(b64).decode("utf-8")
+        # Проверяем, что это валидный JSON
+        data = json.loads(decoded)
+        with open(dst, "w") as f:
+            json.dump(data, f, indent=2)
+        print(f"[setup] credentials decoded from base64 → {dst}")
         return True
-    print(f"[setup] credentials.json NOT FOUND at {GTC_CRED_FILE}")
+
+    # Иначе — обычный json
+    if os.path.exists(GTC_CRED_FILE):
+        try:
+            with open(GTC_CRED_FILE) as f:
+                data = json.load(f)
+            with open(dst, "w") as f:
+                json.dump(data, f, indent=2)
+            print(f"[setup] credentials copied from JSON → {dst}")
+            return True
+        except Exception as e:
+            print(f"[setup] credentials.json broken: {e}")
+            return False
+
+    print(f"[setup] no credentials found")
     return False
 
 setup_credentials()
@@ -48,35 +72,35 @@ def read_root():
 
 @app.get("/debug")
 def debug():
-    """Показывает состояние бэкенда."""
     config_dir = os.path.expanduser("~/.config/gtc")
     creds_path = os.path.join(config_dir, "credentials.json")
 
     info = {
         "base_dir": BASE_DIR,
         "gtc_script_exists": os.path.exists(GTC_SCRIPT),
-        "gtc_cred_file_exists": os.path.exists(GTC_CRED_FILE),
-        "config_dir_exists": os.path.exists(config_dir),
-        "creds_in_config_exists": os.path.exists(creds_path),
-        "base_dir_files": os.listdir(BASE_DIR) if os.path.exists(BASE_DIR) else [],
+        "b64_exists": os.path.exists(GTC_CRED_B64),
+        "json_exists": os.path.exists(GTC_CRED_FILE),
+        "config_exists": os.path.exists(creds_path),
+        "base_dir_files": sorted(os.listdir(BASE_DIR)) if os.path.exists(BASE_DIR) else [],
     }
 
     if os.path.exists(creds_path):
         try:
             with open(creds_path) as f:
                 data = json.load(f)
-            info["creds_keys"] = list(data.get("credentials", {}).keys())
+            info["creds_ok"] = True
+            info["creds_accounts"] = list(data.get("credentials", {}).keys())
         except Exception as e:
+            info["creds_ok"] = False
             info["creds_error"] = str(e)
 
-    # Проверяем запуск gtc.py
     try:
         r = subprocess.run(
             ["python", GTC_SCRIPT, "search", "+79533950127", "--json", "-t", "tags"],
-            capture_output=True, text=True, timeout=40, cwd=BASE_DIR
+            capture_output=True, text=True, timeout=60, cwd=BASE_DIR
         )
         info["gtc_returncode"] = r.returncode
-        info["gtc_stdout"] = r.stdout[:1000]
+        info["gtc_stdout"] = r.stdout[:2000]
         info["gtc_stderr"] = r.stderr[:1000]
     except Exception as e:
         info["gtc_error"] = str(e)
@@ -102,7 +126,7 @@ async def lookup_phone(request: PhoneRequest):
     try:
         r = subprocess.run(
             ["python", GTC_SCRIPT, "search", phone, "--json", "-t", "tags"],
-            capture_output=True, text=True, timeout=40, cwd=BASE_DIR
+            capture_output=True, text=True, timeout=60, cwd=BASE_DIR
         )
 
         if r.returncode != 0:
@@ -112,7 +136,7 @@ async def lookup_phone(request: PhoneRequest):
             try:
                 data = json.loads(r.stdout)
             except Exception as e:
-                result["getcontact"] = {"error": f"JSON parse error: {e}. Output: {r.stdout[:300]}"}
+                result["getcontact"] = {"error": f"JSON parse: {e}. Output: {r.stdout[:300]}"}
                 result["error"] = result["getcontact"]["error"]
                 return result
 
