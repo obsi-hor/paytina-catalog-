@@ -1,5 +1,8 @@
 import io
-import importlib.util
+import os
+import json
+import shutil
+import subprocess
 import contextlib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,9 +22,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-spec = importlib.util.spec_from_file_location("lookup_original", "lookup-original.py")
-lookup_original = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(lookup_original)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
+GTC_CRED_FILE = os.path.join(BASE_DIR, "credentials.json")
+
+# Копируем credentials.json в ~/.config/gtc/ при старте сервиса
+def setup_credentials():
+    config_dir = os.path.expanduser("~/.config/gtc")
+    os.makedirs(config_dir, exist_ok=True)
+    dst = os.path.join(config_dir, "credentials.json")
+    if os.path.exists(GTC_CRED_FILE):
+        shutil.copy(GTC_CRED_FILE, dst)
+        print(f"[setup] credentials copied to {dst}")
+
+setup_credentials()
 
 class PhoneRequest(BaseModel):
     phone: str
@@ -30,62 +44,65 @@ class PhoneRequest(BaseModel):
 def read_root():
     return {"status": "proxy is running"}
 
+@app.get("/gtc-test")
+def gtc_test():
+    """Проверка: работает ли GetContact CLI."""
+    try:
+        result = subprocess.run(
+            ["python", GTC_SCRIPT, "--help"],
+            capture_output=True, text=True, timeout=15, cwd=BASE_DIR
+        )
+        return {
+            "stdout": result.stdout[:500],
+            "stderr": result.stderr[:500],
+            "code": result.returncode
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.post("/lookup")
 async def lookup_phone(request: PhoneRequest):
-    phone = request.phone.strip().replace("+", "").replace(" ", "").replace("-", "")
+    phone = request.phone.strip()
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number is required")
 
-    captured_output = io.StringIO()
-    error = None
+    if not phone.startswith("+"):
+        phone = "+" + phone.lstrip("+")
 
-    with contextlib.redirect_stdout(captured_output):
-        # ===== Sync.ME =====
-        try:
-            lookup_original.Sync_Me().start_styncme(phone, more=True)
-        except Exception as e:
-            print(f"[Sync_ME error] {e}")
-
-        # ===== CallerID =====
-        try:
-            lookup_original.CallerID().start_callerid_check(phone, more=True)
-        except Exception as e:
-            print(f"[CallerID error] {e}")
-
-        # ===== CallApp =====
-        try:
-            lookup_original.CallApp().send_request(phone, more=True)
-        except Exception as e:
-            try:
-                lookup_original.CallApp().send_request(phone)
-            except Exception as e2:
-                print(f"[CallApp error] {e2}")
-
-        # ===== Eyecon =====
-        try:
-            lookup_original.Eyecon().send_request_pic(phone, more=True)
-            lookup_original.Eyecon().send_request_getname(phone, more=True)
-        except Exception:
-            try:
-                lookup_original.Eyecon().send_request_pic(phone)
-                lookup_original.Eyecon().send_request_getname(phone)
-            except Exception as e3:
-                print(f"[Eyecon error] {e3}")
-
-        # ===== Truecaller =====
-        try:
-            lookup_original.Truecaller().send_request(phone, more=True)
-        except Exception as e:
-            try:
-                lookup_original.Truecaller().send_request(phone)
-            except Exception as e2:
-                print(f"[Truecaller error] {e2}")
-
-    raw = captured_output.getvalue()
-
-    return {
-        "success": error is None,
+    result = {
+        "success": True,
         "phone": phone,
-        "error": error,
-        "raw_output": raw
+        "getcontact": None,
+        "error": None
     }
+
+    # ===== GETCONTACT =====
+    try:
+        r = subprocess.run(
+            ["python", GTC_SCRIPT, "search", phone, "--json", "-t", "tags"],
+            capture_output=True, text=True, timeout=40, cwd=BASE_DIR
+        )
+
+        if r.returncode != 0:
+            result["getcontact"] = {"error": r.stderr[:500] or "gtc failed"}
+        else:
+            data = json.loads(r.stdout)
+            profile = data.get("result", {}).get("profile", {}) or {}
+            tags_raw = data.get("result", {}).get("tags", []) or []
+            spam = data.get("result", {}).get("spamInfo", {}) or {}
+
+            result["getcontact"] = {
+                "displayName": profile.get("displayName"),
+                "tagCount": profile.get("tagCount"),
+                "countryCode": profile.get("countryCode"),
+                "displayNumber": profile.get("displayNumber"),
+                "email": profile.get("email"),
+                "spamType": spam.get("type"),
+                "spamDegree": spam.get("degree"),
+                "tags": [{"tag": t.get("tag"), "count": t.get("count")} for t in tags_raw]
+            }
+    except Exception as e:
+        result["getcontact"] = {"error": str(e)}
+        result["error"] = str(e)
+
+    return result
