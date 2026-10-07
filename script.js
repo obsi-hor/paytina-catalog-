@@ -1,7 +1,6 @@
 // ========== DOM-ССЫЛКИ ==========
 const navItems = document.querySelectorAll('#nav .nav-item');
 const sections = document.querySelectorAll('.section');
-const types = document.querySelectorAll('#types span');
 const typeDesc = document.getElementById('typeDescription');
 const langs = document.querySelectorAll('#lang span');
 const profileLang = document.getElementById('profileLang');
@@ -29,7 +28,18 @@ const graphInput = document.getElementById('graphInput');
 const graphResetBtn = document.getElementById('graphReset');
 
 const PROXY_URL = 'https://paytina-catalog-phone-proxy.onrender.com';
-let currentType = 'domain';
+
+// ========== АВТООПРЕДЕЛЕНИЕ ТИПА (27) ==========
+function detectType(value) {
+  const v = value.trim();
+  if (!v) return null;
+  if (v.includes('@')) return 'email';
+  if (/^\+?[\d\s\-\(\)]{7,}$/.test(v)) return 'phone';
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v)) return 'ip';
+  if (v.startsWith('@') || /^[a-z0-9_\.]{3,30}$/i.test(v)) return 'nick';
+  if (v.includes('.')) return 'domain';
+  return 'domain';
+}
 
 // ========== НАВИГАЦИЯ ==========
 navItems.forEach(item => {
@@ -39,7 +49,6 @@ navItems.forEach(item => {
     sections.forEach(s => s.classList.remove('active'));
     const target = document.getElementById(item.dataset.section);
     if (target) target.classList.add('active');
-
     if (item.dataset.section === 'graph') {
       setTimeout(() => {
         if (!cy) initGraph();
@@ -49,27 +58,8 @@ navItems.forEach(item => {
   });
 });
 
-// ========== ТИПЫ ПОИСКА ==========
-const typeDescriptions = {
-  domain: { title: 'Домен', text: 'WHOIS/RDAP · DNS-записи · Certificate Transparency · Wayback Machine.' },
-  ip:     { title: 'IP',     text: 'Геолокация · ISP · ASN · Shodan (порты, уязвимости).' },
-  email:  { title: 'Email',  text: 'MX-записи · проверка в утечках (XposedOrNot).' },
-  phone:  { title: 'Номер',  text: 'Оператор · имя из контактов · соцсети · утечки (GetContact, Hudson Rock).' }
-};
-
-types.forEach(t => {
-  t.addEventListener('click', () => {
-    types.forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    currentType = t.dataset.type;
-    const d = typeDescriptions[currentType];
-    if (d && typeDesc) typeDesc.innerHTML = `<h3>${d.title}</h3><p>${d.text}</p>`;
-  });
-});
-
 // ========== ЯЗЫК ==========
 const langNames = { ru: 'Русский', uk: 'Українська', kz: 'Қазақша', en: 'English' };
-
 langs.forEach(l => {
   l.addEventListener('click', () => {
     langs.forEach(x => x.classList.remove('active'));
@@ -91,9 +81,7 @@ function applyTheme(light) {
   if (themeToggle) themeToggle.textContent = light ? '☀️' : '🌙';
   if (profileTheme) profileTheme.textContent = light ? 'Светлая' : 'Тёмная';
 }
-
 if (localStorage.getItem('theme') === 'light') applyTheme(true);
-
 if (themeToggle) {
   themeToggle.addEventListener('click', () => {
     const isLight = !document.body.classList.contains('light');
@@ -117,7 +105,6 @@ const tools = [
   { name: 'IPinfo',       desc: 'Гео и ASN для IP',                 url: 'https://ipinfo.io',          tag: 'сеть' },
   { name: 'BGPView',      desc: 'ASN и маршруты BGP',               url: 'https://bgpview.io',         tag: 'сеть' }
 ];
-
 if (catalogGrid) {
   tools.forEach(t => {
     const a = document.createElement('a');
@@ -135,22 +122,16 @@ function getHistory() {
   try { return JSON.parse(localStorage.getItem('history') || '[]'); }
   catch { return []; }
 }
-
 function saveHistory(h) { localStorage.setItem('history', JSON.stringify(h)); }
-
 function renderHistory() {
   const h = getHistory();
   if (profileScans) profileScans.textContent = h.length;
   if (!historyList) return;
-  if (!h.length) {
-    historyList.innerHTML = '<div class="history-empty">Пока пусто.</div>';
-    return;
-  }
+  if (!h.length) { historyList.innerHTML = '<div class="history-empty">Пока пусто.</div>'; return; }
   historyList.innerHTML = h.slice(0, 20).map(item =>
     `<div class="history-item"><span class="q">${item.q}</span><span class="t">${item.t}</span></div>`
   ).join('');
 }
-
 function addHistory(q) {
   const h = getHistory();
   const now = new Date();
@@ -159,14 +140,9 @@ function addHistory(q) {
   saveHistory(h.slice(0, 50));
   renderHistory();
 }
-
 renderHistory();
-
 if (clearBtn) {
-  clearBtn.addEventListener('click', () => {
-    localStorage.removeItem('history');
-    renderHistory();
-  });
+  clearBtn.addEventListener('click', () => { localStorage.removeItem('history'); renderHistory(); });
 }
 // ========== API-ФУНКЦИИ ==========
 async function fetchDNS(domain) {
@@ -181,7 +157,6 @@ async function fetchDNS(domain) {
   }
   return out;
 }
-
 async function fetchRDAP(domain) {
   try {
     const r = await fetch(`https://rdap.org/domain/${domain}`);
@@ -189,7 +164,6 @@ async function fetchRDAP(domain) {
     return await r.json();
   } catch (e) { return null; }
 }
-
 async function fetchCT(domain) {
   try {
     const r = await fetch(`https://crt.sh/?q=${domain}&output=json`);
@@ -206,7 +180,6 @@ async function fetchCT(domain) {
     return Array.from(subs).sort();
   } catch (e) { return []; }
 }
-
 async function fetchIPInfo(ip) {
   try {
     const r = await fetch(`https://ipwho.is/${ip}`);
@@ -223,19 +196,14 @@ async function fetchIPInfo(ip) {
     };
   } catch (e) { return null; }
 }
-
 async function fetchShodan(ip) {
   try {
     const r = await fetch(`https://internetdb.shodan.io/${ip}`);
     if (!r.ok) return null;
     const j = await r.json();
-    return {
-      ports: j.ports || [], hostnames: j.hostnames || [],
-      vulns: j.vulns || [], tags: j.tags || []
-    };
+    return { ports: j.ports || [], hostnames: j.hostnames || [], vulns: j.vulns || [], tags: j.tags || [] };
   } catch (e) { return null; }
 }
-
 async function fetchWayback(domain) {
   try {
     const r = await fetch(`https://archive.org/wayback/available?url=${domain}`);
@@ -243,7 +211,6 @@ async function fetchWayback(domain) {
     return j.archived_snapshots?.closest || null;
   } catch (e) { return null; }
 }
-
 async function checkBreaches(email) {
   try {
     const r = await fetch(`https://api.xposedornot.com/v1/check-email/${email}`);
@@ -255,84 +222,90 @@ async function checkBreaches(email) {
 // ========== РЕНДЕР ==========
 function renderLoading() {
   if (!resultsDiv) return;
-  resultsDiv.innerHTML = `
-    <div class="result-card">
-      <div class="skeleton" style="width:40%"></div>
-      <div class="skeleton" style="width:80%"></div>
-      <div class="skeleton" style="width:60%"></div>
-      <div class="skeleton" style="width:70%"></div>
-    </div>`;
+  resultsDiv.innerHTML = `<div class="result-card">
+    <div class="skeleton" style="width:40%"></div>
+    <div class="skeleton" style="width:80%"></div>
+    <div class="skeleton" style="width:60%"></div>
+  </div>`;
 }
-
 function renderError(text) {
   if (!resultsDiv) return;
   resultsDiv.innerHTML = `<div class="result-error">${text}</div>`;
 }
 
+// ========== ПИВОТЫ (29) ==========
+function buildPivots(type, value) {
+  let html = `<div class="pivots">`;
+  if (type === 'domain') {
+    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'shodan-domain')">🔍 IP через Shodan</span>`;
+    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'ct')">📜 Все поддомены</span>`;
+  }
+  if (type === 'email') {
+    const d = value.split('@')[1];
+    if (d) {
+      html += `<span class="pivot-btn" onclick="doSearch('${d}', 'domain')">🌐 Домен email</span>`;
+      html += `<span class="pivot-btn" onclick="doSearch('${value}', 'breaches')">🔓 Утечки</span>`;
+    }
+  }
+  if (type === 'ip') {
+    html += `<span class="pivot-btn" onclick="doSearch('${value}', 'shodan')">🔍 Shodan</span>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
 // ========== ПОИСК ДОМЕНА ==========
 async function searchDomain(domain) {
-  renderLoading();
   const [dns, rdap, ct, wayback] = await Promise.all([
     fetchDNS(domain), fetchRDAP(domain), fetchCT(domain), fetchWayback(domain)
   ]);
-
-  let html = '';
-
+  let html = `<div class="result-card"><h3>🌐 Домен: ${domain}</h3>`;
   if (dns) {
-    html += `<div class="result-card"><h3>DNS</h3><table class="result-table">`;
+    html += `<div class="info-block"><h4>DNS</h4><table class="result-table">`;
     for (const [t, vals] of Object.entries(dns)) {
       if (vals && vals.length) html += `<tr><td>${t}</td><td>${vals.join('<br>')}</td></tr>`;
     }
     html += `</table></div>`;
   }
-
   if (rdap) {
-    html += `<div class="result-card"><h3>WHOIS / RDAP</h3><table class="result-table">`;
+    html += `<div class="info-block"><h4>WHOIS / RDAP</h4><table class="result-table">`;
     if (rdap.ldhName) html += `<tr><td>Домен</td><td>${rdap.ldhName}</td></tr>`;
     if (rdap.status) html += `<tr><td>Статус</td><td>${rdap.status.join(', ')}</td></tr>`;
     if (rdap.registrar) html += `<tr><td>Регистратор</td><td>${rdap.registrar}</td></tr>`;
-    if (rdap.events) {
-      rdap.events.forEach(e => {
-        if (e.eventAction === 'registration') html += `<tr><td>Создан</td><td>${e.eventDate}</td></tr>`;
-        if (e.eventAction === 'expiration') html += `<tr><td>Истекает</td><td>${e.eventDate}</td></tr>`;
-      });
-    }
+    if (rdap.events) rdap.events.forEach(e => {
+      if (e.eventAction === 'registration') html += `<tr><td>Создан</td><td>${e.eventDate}</td></tr>`;
+      if (e.eventAction === 'expiration') html += `<tr><td>Истекает</td><td>${e.eventDate}</td></tr>`;
+    });
     html += `</table></div>`;
   }
-
   if (ct.length) {
-    html += `<div class="result-card"><h3>Certificate Transparency (${ct.length})</h3><div class="subdomain-list">`;
+    html += `<div class="info-block"><h4>Certificate Transparency (${ct.length})</h4><div class="subdomain-list">`;
     ct.slice(0, 200).forEach(s => html += `<span>${s}</span>`);
     html += `</div></div>`;
   }
-
   if (wayback) {
-    html += `<div class="result-card"><h3>Wayback Machine</h3><table class="result-table">
+    html += `<div class="info-block"><h4>Wayback Machine</h4><table class="result-table">
       <tr><td>Последний снимок</td><td>${wayback.timestamp}</td></tr>
       <tr><td>Ссылка</td><td>${wayback.url}</td></tr>
     </table></div>`;
   }
-
+  html += buildPivots('domain', domain);
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${domain}')">Копировать</button>
     <button class="action-btn" onclick="exportJSON('${domain}')">Экспорт JSON</button>
-  </div>`;
-
-  resultsDiv.innerHTML = html;
-  addHistory(domain);
+  </div></div>`;
+  return html;
 }
 
 // ========== ПОИСК IP ==========
 async function searchIP(ip) {
-  renderLoading();
   const [data, shodan] = await Promise.all([fetchIPInfo(ip), fetchShodan(ip)]);
-
-  if (!data) { renderError('Не удалось получить данные по IP.'); return; }
-
-  let html = `<div class="result-card"><h3>IP ${data.query}</h3><table class="result-table">`;
+  if (!data) return `<div class="result-error">Не удалось получить данные по IP ${ip}.</div>`;
+  let html = `<div class="result-card"><h3>📍 IP: ${ip}</h3>`;
+  html += `<div class="info-block"><h4>Геолокация</h4><table class="result-table">`;
   const fields = {
-    country: 'Страна', countryCode: 'Код страны', regionName: 'Регион', city: 'Город',
-    zip: 'Индекс', lat: 'Широта', lon: 'Долгота', timezone: 'Часовой пояс',
+    country: 'Страна', regionName: 'Регион', city: 'Город', zip: 'Индекс',
+    lat: 'Широта', lon: 'Долгота', timezone: 'Часовой пояс',
     isp: 'Провайдер', org: 'Организация', as: 'AS', asname: 'Имя AS',
     proxy: 'Прокси/VPN', hosting: 'Хостинг'
   };
@@ -342,191 +315,213 @@ async function searchIP(ip) {
     }
   }
   html += `</table></div>`;
-
   if (shodan) {
-    html += `<div class="result-card"><h3>Shodan InternetDB</h3><table class="result-table">`;
+    html += `<div class="info-block"><h4>Shodan InternetDB</h4><table class="result-table">`;
     if (shodan.ports.length) html += `<tr><td>Открытые порты</td><td>${shodan.ports.join(', ')}</td></tr>`;
     if (shodan.hostnames.length) html += `<tr><td>Хосты</td><td>${shodan.hostnames.join('<br>')}</td></tr>`;
     if (shodan.vulns.length) html += `<tr><td>Уязвимости</td><td>${shodan.vulns.join('<br>')}</td></tr>`;
     html += `</table></div>`;
   }
-
+  if (data.lat && data.lon) {
+    const mapId = 'ipMap-' + ip.replace(/\./g, '-');
+    html += `<div id="${mapId}" style="height:250px;border-radius:8px;margin-top:12px;border:1px solid #1A2028;"></div>`;
+    setTimeout(() => renderIPMap(mapId, data.lat, data.lon, ip), 200);
+  }
+  html += buildPivots('ip', ip);
   html += `<div class="result-actions">
-    <button class="action-btn" onclick="copyResult('${data.query}')">Копировать</button>
-    <button class="action-btn" onclick="exportJSON('${data.query}')">Экспорт JSON</button>
-  </div>`;
+    <button class="action-btn" onclick="copyResult('${ip}')">Копировать</button>
+    <button class="action-btn" onclick="exportJSON('${ip}')">Экспорт JSON</button>
+  </div></div>`;
+  return html;
+}
 
-  resultsDiv.innerHTML = html;
-  addHistory(ip);
+function renderIPMap(id, lat, lon, ip) {
+  const el = document.getElementById(id);
+  if (!el || typeof L === 'undefined') return;
+  const map = L.map(id).setView([lat, lon], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+  L.marker([lat, lon]).addTo(map).bindPopup(ip).openPopup();
 }
 
 // ========== ПОИСК EMAIL ==========
 async function searchEmail(email) {
-  renderLoading();
   const domain = email.split('@')[1];
-  if (!domain) { renderError('Неверный email.'); return; }
-
+  if (!domain) return `<div class="result-error">Неверный email: ${email}</div>`;
   const [dns, breaches] = await Promise.all([fetchDNS(domain), checkBreaches(email)]);
-
-  let html = `<div class="result-card"><h3>Email: ${email}</h3><table class="result-table">`;
+  let html = `<div class="result-card"><h3>📧 Email: ${email}</h3>`;
+  html += `<div class="info-block"><h4>Домен</h4><table class="result-table">`;
   if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
-  if (dns.A) html += `<tr><td>A (домен)</td><td>${dns.A.join('<br>')}</td></tr>`;
+  if (dns.A) html += `<tr><td>A</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
-
   if (breaches && breaches.breaches && breaches.breaches.length) {
     const list = Array.isArray(breaches.breaches[0]) ? breaches.breaches[0] : breaches.breaches;
-    html += `<div class="result-card"><h3>Утечки (XposedOrNot)</h3><table class="result-table">
-      <tr><td>Найден в утечках</td><td>${list.length}</td></tr>
+    html += `<div class="info-block"><h4>Утечки (XposedOrNot)</h4><table class="result-table">
+      <tr><td>Найден</td><td>${list.length}</td></tr>
       <tr><td>Список</td><td>${list.join('<br>')}</td></tr>
     </table></div>`;
-  } else {
-    html += `<div class="result-card"><h3>Утечки (XposedOrNot)</h3><p style="color:#6B7280;font-size:13px;">Утечек не найдено.</p></div>`;
   }
-
+  html += buildPivots('email', email);
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${email}')">Копировать</button>
     <button class="action-btn" onclick="exportJSON('${email}')">Экспорт JSON</button>
-  </div>`;
-
-  resultsDiv.innerHTML = html;
-  addHistory(email);
+  </div></div>`;
+  return html;
 }
 
-// ========== ПОИСК НОМЕРА (обновлённый) ==========
+// ========== ПОИСК НОМЕРА ==========
 async function searchPhone(phone) {
-  renderLoading();
   try {
     const response = await fetch(`${PROXY_URL}/lookup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: phone })
     });
-
     const result = await response.json();
-    if (!result.success) {
-      renderError('Ошибка: ' + (result.error || 'не удалось получить данные'));
-      return;
-    }
+    if (!result.success) return `<div class="result-error">Ошибка номера ${phone}</div>`;
 
-    let html = `<div class="result-card">
-      <h3>📱 Номер: ${phone}`;
-    if (result.from_cache) {
-      html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
-    }
+    let html = `<div class="result-card"><h3>📱 Номер: ${phone}`;
+    if (result.from_cache) html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
     html += `</h3>`;
 
-    // ===== ОПЕРАТОР =====
-    const carrier = result.carrier;
-    if (carrier && carrier.valid) {
-      html += `<div class="info-block">
-        <h4>📡 Оператор</h4>
-        <table class="result-table">
-          <tr><td>Оператор</td><td>${carrier.carrier || '—'}</td></tr>
-          <tr><td>Регион</td><td>${carrier.region || '—'}</td></tr>
-          <tr><td>Страна</td><td>${carrier.country_code || '—'}</td></tr>
-          <tr><td>Тип</td><td>${carrier.line_type === 'mobile' ? 'Мобильный' : 'Другой'}</td></tr>
-          <tr><td>Формат</td><td>${carrier.formatted || '—'}</td></tr>
-        </table>
-      </div>`;
+    const c = result.carrier;
+    if (c && c.valid) {
+      html += `<div class="info-block"><h4>📡 Оператор</h4><table class="result-table">
+        <tr><td>Оператор</td><td>${c.carrier || '—'}</td></tr>
+        <tr><td>Регион</td><td>${c.region || '—'}</td></tr>
+        <tr><td>Страна</td><td>${c.country_code || '—'}</td></tr>
+        <tr><td>Тип</td><td>${c.line_type === 'mobile' ? 'Мобильный' : 'Другой'}</td></tr>
+        <tr><td>Формат</td><td>${c.formatted || '—'}</td></tr>
+      </table></div>`;
     }
 
-    // ===== GETCONTACT =====
     const gc = result.getcontact;
     if (gc && !gc.error) {
-      html += `<div class="info-block">
-        <h4>👤 Контакты (GetContact)</h4>`;
-
+      html += `<div class="info-block"><h4>👤 Контакты (GetContact)</h4>`;
       if (gc.displayName) {
         html += `<div class="big-name">${gc.displayName}</div>`;
-        if (gc.tagCount) {
-          html += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Сохранён у ${gc.tagCount} человек</div>`;
-        }
+        if (gc.tagCount) html += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Сохранён у ${gc.tagCount} человек</div>`;
       } else {
-        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено. Номер не сохранён ни у кого из пользователей.</p>`;
+        html += `<p style="color:#6B7280;font-size:13px;">Имя не найдено.</p>`;
       }
-
       if (gc.spamType && gc.spamType !== 'null') {
-        const spamColor = gc.spamDegree === 'high' ? '#EF4444' : '#F59E0B';
-        html += `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${spamColor};">
-          <span style="color:${spamColor};font-size:13px;">⚠ Спам: ${gc.spamType} (${gc.spamDegree})</span>
-        </div>`;
+        const col = gc.spamDegree === 'high' ? '#EF4444' : '#F59E0B';
+        html += `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${col};">
+          <span style="color:${col};font-size:13px;">⚠ Спам: ${gc.spamType} (${gc.spamDegree})</span></div>`;
       }
       html += `</div>`;
     } else if (gc && gc.error) {
-      html += `<div class="info-block">
-        <h4>👤 Контакты (GetContact)</h4>
-        <p class="result-error">${gc.error}</p>
-      </div>`;
+      html += `<div class="info-block"><h4>👤 Контакты (GetContact)</h4><p class="result-error">${gc.error}</p></div>`;
     }
 
-    // ===== СОЦСЕТИ =====
+    // Соцсети
     const social = result.social;
     if (social && social.found && social.found.length) {
-      html += `<div class="info-block">
-        <h4>🌐 Соцсети</h4>
-        <div class="subdomain-list">`;
+      html += `<div class="info-block"><h4>🌐 Соцсети</h4><div class="subdomain-list">`;
       social.found.forEach(s => html += `<span>${s}</span>`);
       html += `</div></div>`;
     }
 
-    // ===== УТЕЧКИ =====
+    // Утечки
     const hr = result.hudsonrock;
     if (hr && !hr.error) {
-      html += `<div class="info-block">
-        <h4>🔓 Утечки (Hudson Rock)</h4>`;
+      html += `<div class="info-block"><h4>🔓 Утечки (Hudson Rock)</h4>`;
       if (hr.compromised) {
         html += `<div style="padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #EF4444;">
-          <span style="color:#EF4444;font-size:13px;">⚠ Найден в ${hr.count} утечках</span>
-        </div>`;
+          <span style="color:#EF4444;font-size:13px;">⚠ Найден в ${hr.count} утечках</span></div>`;
       } else {
         html += `<div style="padding:8px;border-radius:6px;background:rgba(34,197,94,0.1);border-left:3px solid #22C55E;">
-          <span style="color:#22C55E;font-size:13px;">✅ Утечек не найдено</span>
-        </div>`;
+          <span style="color:#22C55E;font-size:13px;">✅ Утечек не найдено</span></div>`;
       }
       html += `</div>`;
     }
+
+    // Кнопки мессенджеров (10)
+    const cleanPhone = phone.replace(/[^\d]/g, '');
+    html += `<div class="messenger-buttons">
+      <a class="msg-btn" href="https://t.me/+${cleanPhone}" target="_blank" rel="noopener">✈️ Telegram</a>
+      <a class="msg-btn" href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener">💬 WhatsApp</a>
+    </div>`;
 
     html += `<div class="result-actions">
       <button class="action-btn" onclick="copyResult('${phone}')">Копировать</button>
       <button class="action-btn" onclick="exportJSON('${phone}')">Экспорт JSON</button>
     </div></div>`;
-
-    resultsDiv.innerHTML = html;
-    addHistory(phone);
-
+    return html;
   } catch (e) {
-    renderError('Прокси засыпает. Подожди минуту и попробуй снова.');
+    return `<div class="result-error">Прокси засыпает. Подожди минуту.</div>`;
   }
+                                                                  }
+// ========== ГЛАВНЫЙ ЗАПУСК ПОИСКА (27 + 28) ==========
+async function performSearch(query) {
+  const type = detectType(query);
+  if (!type) return `<div class="result-error">Не удалось определить тип: ${query}</div>`;
+  if (type === 'domain') return await searchDomain(query);
+  if (type === 'ip') return await searchIP(query);
+  if (type === 'email') return await searchEmail(query);
+  if (type === 'phone') return await searchPhone(query);
+  if (type === 'nick') return `<div class="result-error">Поиск по нику пока в разработке.</div>`;
+  return `<div class="result-error">Неизвестный тип: ${query}</div>`;
 }
 
-// ========== ЗАПУСК ПОИСКА ==========
+async function doSearch(value, forcedType) {
+  const parts = value.split(',').map(s => s.trim()).filter(Boolean);
+  renderLoading();
+
+  if (parts.length === 1) {
+    const html = await performSearch(parts[0]);
+    resultsDiv.innerHTML = html;
+    addHistory(parts[0]);
+    return;
+  }
+
+  // Мультиселектор (28)
+  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length} запросов</div>`;
+  const results = await Promise.all(parts.map(p => performSearch(p)));
+  resultsDiv.innerHTML = `<div class="multi-header">Мультипоиск: ${parts.length} запросов</div>` + results.join('');
+  parts.forEach(p => addHistory(p));
+}
+
 if (searchBtn) {
   searchBtn.addEventListener('click', () => {
     const val = searchInput.value.trim();
     if (!val) return;
-    if (currentType === 'domain') searchDomain(val);
-    else if (currentType === 'ip') searchIP(val);
-    else if (currentType === 'email') searchEmail(val);
-    else if (currentType === 'phone') searchPhone(val);
+    doSearch(val);
   });
-
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchBtn.click();
   });
 }
 
+// ========== ЦЕПОЧКИ (30) ==========
+document.querySelectorAll('.playbooks .pb').forEach(el => {
+  el.addEventListener('click', async () => {
+    const pb = el.dataset.playbook;
+    const val = searchInput.value.trim();
+    if (!val) { alert('Введи домен, номер или email'); return; }
+    renderLoading();
+
+    let html = `<div class="multi-header">Цепочка: ${pb}</div>`;
+    if (pb === 'domain') {
+      html += await searchDomain(val);
+    } else if (pb === 'phone') {
+      html += await searchPhone(val);
+    } else if (pb === 'email') {
+      html += await searchEmail(val);
+    }
+    resultsDiv.innerHTML = html;
+    addHistory(val + ' [' + pb + ']');
+  });
+});
+
 // ========== ГРАФ ==========
 let cy = null;
-
-const COLORS = {
-  domain: '#3B82F6', ip: '#22C55E', email: '#F59E0B',
-  nick: '#A855F7', phone: '#EF4444'
-};
+const COLORS = { domain: '#3B82F6', ip: '#22C55E', email: '#F59E0B', nick: '#A855F7', phone: '#EF4444' };
 
 function initGraph() {
   const container = document.getElementById('cy');
   if (!container) return;
-
   cy = cytoscape({
     container: container,
     style: [
@@ -542,34 +537,20 @@ function initGraph() {
         'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
         'label': 'data(label)', 'font-size': 9, 'color': '#6B7280',
         'text-outline-width': 2, 'text-outline-color': '#050608'
-      }},
-      { selector: 'node:selected', style: { 'border-color': '#3B82F6', 'border-width': 3 }}
+      }}
     ],
     layout: { name: 'cose', animate: true },
     wheelSensitivity: 0.2
-  });
-
-  cy.on('tap', 'node', (e) => {
-    const node = e.target.data();
-    const aside = document.getElementById('aside');
-    if (!aside) return;
-    aside.innerHTML = `
-      <h3>Узел</h3>
-      <div class="profile-row"><span class="label">Тип</span><span class="value">${node.type || '—'}</span></div>
-      <div class="profile-row"><span class="label">Значение</span><span class="value">${node.label}</span></div>
-    `;
   });
 }
 
 async function buildGraph(selector) {
   if (!cy) initGraph();
   if (!cy) return;
-
   const nodes = [];
   const edges = [];
   const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(selector);
   const rootType = isIP ? 'ip' : 'domain';
-
   nodes.push({ data: { id: 'root', label: selector, type: rootType, color: COLORS[rootType] } });
 
   if (isIP) {
@@ -579,11 +560,6 @@ async function buildGraph(selector) {
         const id = 'host' + i;
         nodes.push({ data: { id, label: h, type: 'domain', color: COLORS.domain } });
         edges.push({ data: { source: id, target: 'root', label: 'resolves' } });
-      });
-      shodan.ports.slice(0, 20).forEach((p, i) => {
-        const id = 'port' + i;
-        nodes.push({ data: { id, label: ':' + p, type: 'ip', color: '#F59E0B' } });
-        edges.push({ data: { source: 'root', target: id, label: 'port' } });
       });
     }
   } else {
@@ -598,13 +574,7 @@ async function buildGraph(selector) {
       nodes.push({ data: { id, label: mx, type: 'domain', color: COLORS.domain } });
       edges.push({ data: { source: 'root', target: id, label: 'MX' } });
     });
-    if (dns.NS) dns.NS.forEach((ns, i) => {
-      const id = 'ns' + i;
-      nodes.push({ data: { id, label: ns, type: 'domain', color: COLORS.domain } });
-      edges.push({ data: { source: 'root', target: id, label: 'NS' } });
-    });
   }
-
   cy.elements().remove();
   cy.add([...nodes, ...edges]);
   cy.layout({ name: 'cose', animate: true, padding: 30 }).run();
@@ -616,7 +586,6 @@ if (graphBuildBtn) {
     await buildGraph(val);
   });
 }
-
 if (graphResetBtn) {
   graphResetBtn.addEventListener('click', () => {
     if (cy) cy.elements().remove();
@@ -640,7 +609,6 @@ function handleFile(file) {
   };
   reader.readAsDataURL(file);
 }
-
 function renderExif(tags, file) {
   const known = {
     Make: 'Производитель', Model: 'Модель', DateTimeOriginal: 'Дата съёмки',
@@ -650,7 +618,6 @@ function renderExif(tags, file) {
     GPSAltitude: 'GPS высота', Software: 'Софт',
     Orientation: 'Ориентация', LensModel: 'Объектив'
   };
-
   let html = `<div class="result-card"><h3>EXIF — ${file.name}</h3><table class="result-table">`;
   let found = false;
   for (const [key, label] of Object.entries(known)) {
@@ -666,7 +633,6 @@ function renderExif(tags, file) {
   exifResults.innerHTML = html;
   addHistory(file.name);
 }
-
 if (uploadBox && fileInput) {
   uploadBox.addEventListener('click', () => fileInput.click());
   uploadBox.addEventListener('dragover', (e) => { e.preventDefault(); uploadBox.classList.add('dragover'); });
@@ -680,7 +646,6 @@ if (uploadBox && fileInput) {
     if (fileInput.files.length) handleFile(fileInput.files[0]);
   });
 }
-
 if (clearPreview) {
   clearPreview.addEventListener('click', () => {
     preview.classList.add('hidden');
@@ -718,9 +683,8 @@ function copyResult(text) {
     alert('Скопировано: ' + text);
   }
 }
-
 function exportJSON(selector) {
-  const data = { selector, timestamp: new Date().toISOString(), type: currentType };
+  const data = { selector, timestamp: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -729,6 +693,6 @@ function exportJSON(selector) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
 window.copyResult = copyResult;
 window.exportJSON = exportJSON;
+window.doSearch = doSearch;
