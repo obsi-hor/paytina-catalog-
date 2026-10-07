@@ -69,10 +69,14 @@ setup_credentials()
 class PhoneRequest(BaseModel):
     phone: str
 
+class EmailRequest(BaseModel):
+    email: str
+
 @app.get("/")
 def read_root():
     return {"status": "proxy is running", "cache_size": len(CACHE)}
 
+# ===== ОПЕРАТОР + РЕГИОН (3) =====
 def get_carrier_info(phone):
     try:
         parsed = phonenumbers.parse(phone, None)
@@ -82,13 +86,17 @@ def get_carrier_info(phone):
             "valid": True,
             "carrier": carrier.name_for_number(parsed, "ru") or carrier.name_for_number(parsed, "en"),
             "region": geocoder.description_for_number(parsed, "ru") or geocoder.description_for_number(parsed, "en"),
+            "region_en": geocoder.description_for_number(parsed, "en"),
             "country_code": phonenumbers.region_code_for_number(parsed),
             "line_type": "mobile" if phonenumbers.number_type(parsed) == phonenumbers.PhoneNumberType.MOBILE else "other",
             "formatted": phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
+            "country_code_num": parsed.country_code,
+            "national_number": parsed.national_number,
         }
     except Exception as e:
         return {"valid": False, "error": str(e)}
 
+# ===== GETCONTACT =====
 def get_gtc_data(phone):
     try:
         r = subprocess.run(
@@ -102,17 +110,20 @@ def get_gtc_data(phone):
         spam = data.get("result", {}).get("spamInfo", {}) or {}
         return {
             "displayName": profile.get("displayName"),
+            "name": profile.get("name"),
+            "surname": profile.get("surname"),
             "tagCount": profile.get("tagCount"),
             "countryCode": profile.get("countryCode"),
             "displayNumber": profile.get("displayNumber"),
             "email": profile.get("email"),
+            "profileImage": profile.get("profileImage"),
             "spamType": spam.get("type"),
             "spamDegree": spam.get("degree"),
-            "tags": []
         }
     except Exception as e:
         return {"error": str(e)}
 
+# ===== HUDSON ROCK =====
 def get_hudsonrock(phone):
     try:
         r = requests.get(
@@ -131,6 +142,7 @@ def get_hudsonrock(phone):
     except Exception as e:
         return {"error": str(e)}
 
+# ===== IGNORANT — ВСЕ СОЦСЕТИ (4) =====
 def get_social_networks(phone):
     try:
         clean = phone.replace("+", "")
@@ -142,19 +154,38 @@ def get_social_networks(phone):
             number = clean[2:]
 
         r = subprocess.run(
-            ["python", "-m", "ignorant", country, number, "--only-used", "--no-color"],
-            capture_output=True, text=True, timeout=60
+            ["python", "-m", "ignorant", country, number, "--no-color"],
+            capture_output=True, text=True, timeout=90
         )
         lines = r.stdout.strip().split("\n")
         found = []
         for line in lines:
-            if "[+]" in line and "found on" in line:
-                platform = line.split("found on")[-1].strip()
-                found.append(platform)
-        return {"found": found, "raw": r.stdout[:500]}
+            if "[+]" in line:
+                platform = line.split("[+]")[-1].strip()
+                if platform:
+                    found.append(platform)
+        return {"found": found, "raw": r.stdout[:1000]}
     except Exception as e:
         return {"error": str(e)}
 
+# ===== HOLEHE — EMAIL (33) =====
+def get_holehe(email):
+    try:
+        r = subprocess.run(
+            ["holehe", email, "--no-color", "--only-used"],
+            capture_output=True, text=True, timeout=90
+        )
+        lines = r.stdout.strip().split("\n")
+        found = []
+        for line in lines:
+            if "[+]" in line:
+                site = line.split("[+]")[-1].strip()
+                if site:
+                    found.append(site)
+        return {"found": found, "raw": r.stdout[:1500]}
+    except Exception as e:
+        return {"error": str(e)}
+        # ===== ЭНДПОИНТ НОМЕРА =====
 @app.post("/lookup")
 async def lookup_phone(request: PhoneRequest):
     phone = request.phone.strip()
@@ -186,11 +217,36 @@ async def lookup_phone(request: PhoneRequest):
     cache_set(phone, result)
     return result
 
+# ===== ЭНДПОИНТ EMAIL (HOLEHE) =====
+@app.post("/email-lookup")
+async def email_lookup(request: EmailRequest):
+    email = request.email.strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+
+    cache_key = "email:" + email
+    cached = cache_get(cache_key)
+    if cached:
+        cached["from_cache"] = True
+        return cached
+
+    holehe_result = get_holehe(email)
+
+    result = {
+        "success": True,
+        "email": email,
+        "from_cache": False,
+        "holehe": holehe_result
+    }
+
+    cache_set(cache_key, result)
+    return result
+
 @app.get("/cache")
 def cache_status():
     return {
         "size": len(CACHE),
-        "phones": list(CACHE.keys())[:50]
+        "keys": list(CACHE.keys())[:50]
     }
 
 @app.get("/debug")
