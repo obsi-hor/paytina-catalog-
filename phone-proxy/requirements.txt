@@ -6,3 +6,5 @@ colorama
 httpx[http2]
 phonenumbers
 pycryptodome
+ignorant-ng
+holehe
