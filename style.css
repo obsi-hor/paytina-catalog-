@@ -597,3 +597,28 @@ body.light .web-bg { opacity: 0.08; }
 
   .result-actions { flex-wrap: wrap; }
 }
+/* Блоки в карточке номера */
+.info-block {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1A2028;
+}
+.info-block:last-of-type {
+  border-bottom: none;
+}
+.info-block h4 {
+  font-size: 12px;
+  color: #3B82F6;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.big-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #E8EAED;
+  margin-bottom: 4px;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
