@@ -203,7 +203,7 @@ async function checkBreaches(email) {
     if (!r.ok) return null;
     return await r.json();
   } catch (e) { return null; }
-}
+  }
 // ========== РЕНДЕР ==========
 function renderLoading() {
   if (!resultsDiv) return;
@@ -218,7 +218,7 @@ function renderError(text) {
   resultsDiv.innerHTML = `<div class="result-error">${text}</div>`;
 }
 
-// ========== ПОИСК ДОМЕНА ==========
+// ========== ДОМЕН ==========
 async function searchDomain(domain) {
   const [dns, rdap, ct, wayback] = await Promise.all([
     fetchDNS(domain), fetchRDAP(domain), fetchCT(domain), fetchWayback(domain)
@@ -258,7 +258,7 @@ async function searchDomain(domain) {
   return html;
 }
 
-// ========== ПОИСК IP ==========
+// ========== IP ==========
 async function searchIP(ip) {
   const [data, shodan] = await Promise.all([fetchIPInfo(ip), fetchShodan(ip)]);
   if (!data) return `<div class="result-error">Не удалось получить данные по IP ${ip}.</div>`;
@@ -301,7 +301,7 @@ function renderIPMap(id, lat, lon, ip) {
   L.marker([lat, lon]).addTo(map).bindPopup(ip).openPopup();
 }
 
-// ========== ПОИСК EMAIL ==========
+// ========== EMAIL ==========
 async function searchEmail(email) {
   const domain = email.split('@')[1];
   if (!domain) return `<div class="result-error">Неверный email: ${email}</div>`;
@@ -320,7 +320,6 @@ async function searchEmail(email) {
     </table></div>`;
   }
 
-  // ===== HOLEHE =====
   try {
     const r = await fetch(`${PROXY_URL}/email-lookup`, {
       method: 'POST',
@@ -341,7 +340,7 @@ async function searchEmail(email) {
   return html;
 }
 
-// ========== ПОИСК НОМЕРА ==========
+// ========== НОМЕР ==========
 async function searchPhone(phone) {
   try {
     const response = await fetch(`${PROXY_URL}/lookup`, {
@@ -382,6 +381,17 @@ async function searchPhone(phone) {
           <span style="color:${col};font-size:13px;">⚠ Спам: ${gc.spamType}</span></div>`;
       }
       html += `</div>`;
+    }
+
+    // PHONSINT
+    const ps = result.phonsint;
+    if (ps && ps.found && ps.found.length) {
+      const registered = ps.found.filter(x => x.status === 'registered');
+      if (registered.length) {
+        html += `<div class="info-block"><h4>🔐 Регистрации в сервисах</h4><div class="subdomain-list">`;
+        registered.forEach(x => html += `<span>${x.site}</span>`);
+        html += `</div></div>`;
+      }
     }
 
     const social = result.social;
