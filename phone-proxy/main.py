@@ -142,7 +142,7 @@ def get_hudsonrock(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ===== IGNORANT — СОЦСЕТИ =====
+# ===== IGNORANT =====
 def get_social_networks(phone):
     try:
         clean = phone.replace("+", "")
@@ -167,7 +167,37 @@ def get_social_networks(phone):
         return {"found": found, "raw": r.stdout[:1000]}
     except Exception as e:
         return {"error": str(e)}
-        # ===== HOLEHE — EMAIL =====
+
+# ===== PHONSINT =====
+def get_phonsint(phone):
+    try:
+        r = subprocess.run(
+            ["phonsint", "-p", phone, "--verbose", "--format", "json"],
+            capture_output=True, text=True, timeout=120
+        )
+        if r.returncode != 0:
+            return {"error": r.stderr[:300] or "phonsint failed"}
+
+        try:
+            data = json.loads(r.stdout)
+        except Exception:
+            lines = r.stdout.split("\n")
+            found = []
+            for line in lines:
+                line = line.strip()
+                if line.startswith("[+]"):
+                    site = line.replace("[+]", "").strip()
+                    found.append({"site": site, "status": "registered"})
+                elif line.startswith("[x]"):
+                    site = line.replace("[x]", "").strip()
+                    found.append({"site": site, "status": "not_registered"})
+            return {"found": found, "raw": r.stdout[:1000]}
+
+        return data
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== HOLEHE =====
 def get_holehe(email):
     try:
         r = subprocess.run(
@@ -203,6 +233,7 @@ async def lookup_phone(request: PhoneRequest):
     gtc_data = get_gtc_data(phone)
     hudson = get_hudsonrock(phone)
     social = get_social_networks(phone)
+    phonsint_data = get_phonsint(phone)
 
     result = {
         "success": True,
@@ -211,7 +242,8 @@ async def lookup_phone(request: PhoneRequest):
         "carrier": carrier_info,
         "getcontact": gtc_data,
         "hudsonrock": hudson,
-        "social": social
+        "social": social,
+        "phonsint": phonsint_data
     }
 
     cache_set(phone, result)
@@ -244,10 +276,7 @@ async def email_lookup(request: EmailRequest):
 
 @app.get("/cache")
 def cache_status():
-    return {
-        "size": len(CACHE),
-        "keys": list(CACHE.keys())[:50]
-    }
+    return {"size": len(CACHE), "keys": list(CACHE.keys())[:50]}
 
 @app.get("/debug")
 def debug():
