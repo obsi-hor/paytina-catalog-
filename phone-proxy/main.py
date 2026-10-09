@@ -172,27 +172,23 @@ def get_social_networks(phone):
 def get_phonsint(phone):
     try:
         r = subprocess.run(
-            ["phonsint", "-p", phone, "--verbose", "--format", "json"],
+            ["phonsint", "-p", phone, "--verbose"],
             capture_output=True, text=True, timeout=120
         )
-        if r.returncode != 0:
-            return {"error": r.stderr[:500] or "phonsint failed", "raw_stdout": r.stdout[:500]}
 
-        try:
-            data = json.loads(r.stdout)
-            return data
-        except Exception:
-            lines = r.stdout.split("\n")
-            found = []
-            for line in lines:
-                line = line.strip()
-                if line.startswith("[+]"):
-                    site = line.replace("[+]", "").strip()
-                    found.append({"site": site, "status": "registered"})
-                elif line.startswith("[x]"):
-                    site = line.replace("[x]", "").strip()
-                    found.append({"site": site, "status": "not_registered"})
-            return {"found": found, "raw": r.stdout[:2000]}
+        lines = r.stdout.split("\n")
+        found = []
+        for line in lines:
+            line = line.strip()
+            if line.startswith("[✔]"):
+                rest = line[3:].strip()
+                site = rest.split("[")[0].strip() if "[" in rest else rest.split("(")[0].strip()
+                url = ""
+                if "[" in rest and "]" in rest:
+                    url = rest.split("[")[1].split("]")[0]
+                found.append({"site": site, "url": url, "status": "registered"})
+
+        return {"found": found, "raw": r.stdout[:2000]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -233,7 +229,6 @@ async def lookup_phone(request: PhoneRequest):
     hudson = get_hudsonrock(phone)
     social = get_social_networks(phone)
 
-    # phonsint — в try/except, чтобы не сломать основной ответ
     try:
         phonsint_data = get_phonsint(phone)
     except Exception as e:
@@ -287,7 +282,7 @@ def phonsint_test():
     phone = "+79533950127"
     try:
         r = subprocess.run(
-            ["phonsint", "-p", phone, "--verbose", "--format", "json"],
+            ["phonsint", "-p", phone, "--verbose"],
             capture_output=True, text=True, timeout=120
         )
         return {
@@ -316,5 +311,5 @@ def debug():
             info["creds_accounts"] = list(data.get("credentials", {}).keys())
         except Exception as e:
             info["creds_ok"] = False
-            info["creds_error"] = str(e)
-    return info
+            info["creds_error"] = str(e) 
+    return info    
