@@ -176,10 +176,11 @@ def get_phonsint(phone):
             capture_output=True, text=True, timeout=120
         )
         if r.returncode != 0:
-            return {"error": r.stderr[:300] or "phonsint failed"}
+            return {"error": r.stderr[:500] or "phonsint failed", "raw_stdout": r.stdout[:500]}
 
         try:
             data = json.loads(r.stdout)
+            return data
         except Exception:
             lines = r.stdout.split("\n")
             found = []
@@ -191,9 +192,7 @@ def get_phonsint(phone):
                 elif line.startswith("[x]"):
                     site = line.replace("[x]", "").strip()
                     found.append({"site": site, "status": "not_registered"})
-            return {"found": found, "raw": r.stdout[:1000]}
-
-        return data
+            return {"found": found, "raw": r.stdout[:2000]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -233,7 +232,12 @@ async def lookup_phone(request: PhoneRequest):
     gtc_data = get_gtc_data(phone)
     hudson = get_hudsonrock(phone)
     social = get_social_networks(phone)
-    phonsint_data = get_phonsint(phone)
+
+    # phonsint — в try/except, чтобы не сломать основной ответ
+    try:
+        phonsint_data = get_phonsint(phone)
+    except Exception as e:
+        phonsint_data = {"error": str(e)}
 
     result = {
         "success": True,
@@ -277,6 +281,22 @@ async def email_lookup(request: EmailRequest):
 @app.get("/cache")
 def cache_status():
     return {"size": len(CACHE), "keys": list(CACHE.keys())[:50]}
+
+@app.get("/phonsint-test")
+def phonsint_test():
+    phone = "+79533950127"
+    try:
+        r = subprocess.run(
+            ["phonsint", "-p", phone, "--verbose", "--format", "json"],
+            capture_output=True, text=True, timeout=120
+        )
+        return {
+            "returncode": r.returncode,
+            "stdout": r.stdout[:3000],
+            "stderr": r.stderr[:2000],
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/debug")
 def debug():
