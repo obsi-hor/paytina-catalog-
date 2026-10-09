@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Устанавливаем Rust и системные зависимости
+# Rust + системные зависимости
 RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
@@ -10,24 +10,28 @@ RUN apt-get update && apt-get install -y \
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Устанавливаем Python-зависимости
 WORKDIR /app
+
+# Python-зависимости
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем TeleSpotter и собираем
+# Rust-зависимости для TeleSpotter
+COPY telespotter/Cargo.toml telespotter/Cargo.lock ./telespotter/
+WORKDIR /app/telespotter
+RUN cargo fetch || true
+
+# Копируем исходники TeleSpotter и собираем
+WORKDIR /app
 COPY telespotter/ ./telespotter/
 WORKDIR /app/telespotter
 RUN cargo build --release
 
-# Возвращаемся в корень
+# Возвращаемся
 WORKDIR /app
-
-# Копируем всё остальное
 COPY . .
 
-# phunter — Python-скрипт
-RUN pip install -r phunter/requirements.txt || true
+# Порт
+EXPOSE 10000
 
-# Запускаем бэкенд
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
