@@ -87,18 +87,18 @@ if (themeToggle) {
 
 // ========== КАТАЛОГ ==========
 const tools = [
-  { name: 'Shodan',       desc: 'Устройства и порты',  url: 'https://shodan.io',          tag: 'сеть' },
-  { name: 'Censys',       desc: 'Сканирование',         url: 'https://search.censys.io',   tag: 'сеть' },
-  { name: 'crt.sh',       desc: 'CT-логи',              url: 'https://crt.sh',             tag: 'домены' },
-  { name: 'VirusTotal',   desc: 'Репутация',            url: 'https://virustotal.com',     tag: 'репутация' },
-  { name: 'urlscan.io',   desc: 'Анализ сайтов',        url: 'https://urlscan.io',         tag: 'веб' },
-  { name: 'HIBP',         desc: 'Утечки email',         url: 'https://haveibeenpwned.com', tag: 'утечки' },
-  { name: 'Sherlock',     desc: 'Поиск по нику',        url: 'https://github.com/sherlock-project/sherlock', tag: 'соцсети' },
-  { name: 'Holehe',       desc: 'Email на площадках',   url: 'https://github.com/megadose/holehe', tag: 'почта' },
-  { name: 'DNSDumpster',  desc: 'Карта DNS',            url: 'https://dnsdumpster.com',    tag: 'домены' },
-  { name: 'Wayback',      desc: 'Архив сайтов',         url: 'https://web.archive.org',    tag: 'архив' },
-  { name: 'IPinfo',       desc: 'Гео и ASN',            url: 'https://ipinfo.io',          tag: 'сеть' },
-  { name: 'BGPView',      desc: 'ASN и BGP',            url: 'https://bgpview.io',         tag: 'сеть' }
+  { name: 'Shodan', desc: 'Устройства и порты', url: 'https://shodan.io', tag: 'сеть' },
+  { name: 'Censys', desc: 'Сканирование', url: 'https://search.censys.io', tag: 'сеть' },
+  { name: 'crt.sh', desc: 'CT-логи', url: 'https://crt.sh', tag: 'домены' },
+  { name: 'VirusTotal', desc: 'Репутация', url: 'https://virustotal.com', tag: 'репутация' },
+  { name: 'urlscan.io', desc: 'Анализ сайтов', url: 'https://urlscan.io', tag: 'веб' },
+  { name: 'HIBP', desc: 'Утечки email', url: 'https://haveibeenpwned.com', tag: 'утечки' },
+  { name: 'Sherlock', desc: 'Поиск по нику', url: 'https://github.com/sherlock-project/sherlock', tag: 'соцсети' },
+  { name: 'Holehe', desc: 'Email на площадках', url: 'https://github.com/megadose/holehe', tag: 'почта' },
+  { name: 'DNSDumpster', desc: 'Карта DNS', url: 'https://dnsdumpster.com', tag: 'домены' },
+  { name: 'Wayback', desc: 'Архив сайтов', url: 'https://web.archive.org', tag: 'архив' },
+  { name: 'IPinfo', desc: 'Гео и ASN', url: 'https://ipinfo.io', tag: 'сеть' },
+  { name: 'BGPView', desc: 'ASN и BGP', url: 'https://bgpview.io', tag: 'сеть' }
 ];
 if (catalogGrid) {
   tools.forEach(t => {
@@ -203,7 +203,7 @@ async function checkBreaches(email) {
     if (!r.ok) return null;
     return await r.json();
   } catch (e) { return null; }
-  }
+}
 // ========== РЕНДЕР ==========
 function renderLoading() {
   if (!resultsDiv) return;
@@ -311,7 +311,6 @@ async function searchEmail(email) {
   if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
   if (dns.A) html += `<tr><td>A</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
-
   if (breaches && breaches.breaches && breaches.breaches.length) {
     const list = Array.isArray(breaches.breaches[0]) ? breaches.breaches[0] : breaches.breaches;
     html += `<div class="info-block"><h4>Утечки (XposedOrNot)</h4><table class="result-table">
@@ -319,7 +318,6 @@ async function searchEmail(email) {
       <tr><td>Список</td><td>${list.join('<br>')}</td></tr>
     </table></div>`;
   }
-
   try {
     const r = await fetch(`${PROXY_URL}/email-lookup`, {
       method: 'POST',
@@ -333,7 +331,6 @@ async function searchEmail(email) {
       html += `</div></div>`;
     }
   } catch (e) {}
-
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${email}')">Копировать</button>
   </div></div>`;
@@ -355,6 +352,7 @@ async function searchPhone(phone) {
     if (result.from_cache) html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
     html += `</h3>`;
 
+    // ОПЕРАТОР
     const c = result.carrier;
     if (c && c.valid) {
       html += `<div class="info-block"><h4>📡 Оператор</h4><table class="result-table">
@@ -366,9 +364,11 @@ async function searchPhone(phone) {
       </table></div>`;
     }
 
+    // GETCONTACT
     const gc = result.getcontact;
     if (gc && !gc.error) {
       html += `<div class="info-block"><h4>👤 Контакты (GetContact)</h4>`;
+      if (gc.profileImage) html += `<img src="${gc.profileImage}" class="profile-photo" alt="profile">`;
       if (gc.displayName) {
         html += `<div class="big-name">${gc.displayName}</div>`;
         if (gc.tagCount) html += `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;">Сохранён у ${gc.tagCount} человек</div>`;
@@ -377,7 +377,7 @@ async function searchPhone(phone) {
       }
       if (gc.spamType && gc.spamType !== 'null') {
         const col = gc.spamDegree === 'high' ? '#EF4444' : '#F59E0B';
-        html += `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${col};">
+        html += `<div style="clear:both;margin-top:8px;padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid ${col};">
           <span style="color:${col};font-size:13px;">⚠ Спам: ${gc.spamType}</span></div>`;
       }
       html += `</div>`;
@@ -388,12 +388,31 @@ async function searchPhone(phone) {
     if (ps && ps.found && ps.found.length) {
       const registered = ps.found.filter(x => x.status === 'registered');
       if (registered.length) {
-        html += `<div class="info-block"><h4>🔐 Регистрации в сервисах</h4><div class="subdomain-list">`;
+        html += `<div class="info-block"><h4>🔐 Регистрации в сервисах (phonsint)</h4><div class="subdomain-list">`;
         registered.forEach(x => html += `<span>${x.site}</span>`);
         html += `</div></div>`;
       }
     }
 
+    // PHUNTER
+    const phunter = result.phunter;
+    if (phunter && phunter.data && Object.keys(phunter.data).length) {
+      html += `<div class="info-block"><h4>🎯 Phunter</h4><table class="result-table">`;
+      if (phunter.data.operator) html += `<tr><td>Оператор</td><td>${phunter.data.operator}</td></tr>`;
+      if (phunter.data.location) html += `<tr><td>Локация</td><td>${phunter.data.location}</td></tr>`;
+      if (phunter.data.line_type) html += `<tr><td>Тип линии</td><td>${phunter.data.line_type}</td></tr>`;
+      html += `</table></div>`;
+    }
+
+    // TELESPOTTER
+    const ts = result.telespotter;
+    if (ts && ts.found && ts.found.length) {
+      html += `<div class="info-block"><h4>📡 TeleSpotter — OSINT-следы</h4><div class="subdomain-list">`;
+      ts.found.slice(0, 20).forEach(f => html += `<span>${f}</span>`);
+      html += `</div></div>`;
+    }
+
+    // СОЦСЕТИ
     const social = result.social;
     if (social && social.found && social.found.length) {
       html += `<div class="info-block"><h4>🌐 Соцсети</h4><div class="subdomain-list">`;
@@ -401,6 +420,7 @@ async function searchPhone(phone) {
       html += `</div></div>`;
     }
 
+    // УТЕЧКИ
     const hr = result.hudsonrock;
     if (hr && !hr.error) {
       html += `<div class="info-block"><h4>🔓 Утечки</h4>`;
@@ -414,6 +434,7 @@ async function searchPhone(phone) {
       html += `</div>`;
     }
 
+    // МЕССЕНДЖЕРЫ
     const cleanPhone = phone.replace(/[^\d]/g, '');
     html += `<div class="messenger-buttons">
       <a class="msg-btn" href="https://t.me/+${cleanPhone}" target="_blank">✈️ Telegram</a>
