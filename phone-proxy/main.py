@@ -29,6 +29,8 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
 GTC_CRED_B64 = os.path.join(BASE_DIR, "credentials.b64")
+TELESPOTTER_BIN = os.path.join(BASE_DIR, "telespotter", "target", "release", "telespotter")
+PHUNTER_SCRIPT = os.path.join(BASE_DIR, "telespotter", "phunter.py")
 
 # ===== КЭШ =====
 CACHE = {}
@@ -39,8 +41,7 @@ def cache_get(key):
         entry = CACHE[key]
         if time.time() - entry["ts"] < CACHE_TTL:
             return entry["data"]
-        else:
-            del CACHE[key]
+        del CACHE[key]
     return None
 
 def cache_set(key, data):
@@ -76,7 +77,7 @@ class EmailRequest(BaseModel):
 def read_root():
     return {"status": "proxy is running", "cache_size": len(CACHE)}
 
-# ===== ОПЕРАТОР + РЕГИОН =====
+# ===== ОПЕРАТОР =====
 def get_carrier_info(phone):
     try:
         parsed = phonenumbers.parse(phone, None)
@@ -86,12 +87,9 @@ def get_carrier_info(phone):
             "valid": True,
             "carrier": carrier.name_for_number(parsed, "ru") or carrier.name_for_number(parsed, "en"),
             "region": geocoder.description_for_number(parsed, "ru") or geocoder.description_for_number(parsed, "en"),
-            "region_en": geocoder.description_for_number(parsed, "en"),
             "country_code": phonenumbers.region_code_for_number(parsed),
             "line_type": "mobile" if phonenumbers.number_type(parsed) == phonenumbers.PhoneNumberType.MOBILE else "other",
             "formatted": phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
-            "country_code_num": parsed.country_code,
-            "national_number": parsed.national_number,
         }
     except Exception as e:
         return {"valid": False, "error": str(e)}
@@ -110,8 +108,6 @@ def get_gtc_data(phone):
         spam = data.get("result", {}).get("spamInfo", {}) or {}
         return {
             "displayName": profile.get("displayName"),
-            "name": profile.get("name"),
-            "surname": profile.get("surname"),
             "tagCount": profile.get("tagCount"),
             "countryCode": profile.get("countryCode"),
             "displayNumber": profile.get("displayNumber"),
@@ -134,37 +130,7 @@ def get_hudsonrock(phone):
             return {"error": f"HTTP {r.status_code}"}
         data = r.json()
         stealers = data.get("stealers", [])
-        return {
-            "compromised": len(stealers) > 0,
-            "count": len(stealers),
-            "stealers": stealers[:10]
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-# ===== IGNORANT =====
-def get_social_networks(phone):
-    try:
-        clean = phone.replace("+", "")
-        if clean.startswith("7"):
-            country = "7"
-            number = clean[1:]
-        else:
-            country = clean[:2]
-            number = clean[2:]
-
-        r = subprocess.run(
-            ["python", "-m", "ignorant", country, number, "--no-color"],
-            capture_output=True, text=True, timeout=90
-        )
-        lines = r.stdout.strip().split("\n")
-        found = []
-        for line in lines:
-            if "[+]" in line:
-                platform = line.split("[+]")[-1].strip()
-                if platform:
-                    found.append(platform)
-        return {"found": found, "raw": r.stdout[:1000]}
+        return {"compromised": len(stealers) > 0, "count": len(stealers), "stealers": stealers[:10]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -175,7 +141,6 @@ def get_phonsint(phone):
             ["phonsint", "-p", phone, "--verbose"],
             capture_output=True, text=True, timeout=120
         )
-
         lines = r.stdout.split("\n")
         found = []
         for line in lines:
@@ -187,8 +152,52 @@ def get_phonsint(phone):
                 if "[" in rest and "]" in rest:
                     url = rest.split("[")[1].split("]")[0]
                 found.append({"site": site, "url": url, "status": "registered"})
-
         return {"found": found, "raw": r.stdout[:2000]}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== PHUNTER =====
+def get_phunter(phone):
+    try:
+        if not os.path.exists(PHUNTER_SCRIPT):
+            return {"error": "phunter.py not found"}
+        r = subprocess.run(
+            ["python3", PHUNTER_SCRIPT, "-t", phone],
+            capture_output=True, text=True, timeout=120, cwd=os.path.dirname(PHUNTER_SCRIPT)
+        )
+        # Парсим текстовый вывод
+        lines = r.stdout.split("\n")
+        result = {}
+        for line in lines:
+            line = line.strip()
+            if "[+] Operator:" in line:
+                result["operator"] = line.split(":")[-1].strip()
+            elif "[+] Possible location:" in line:
+                result["location"] = line.split(":")[-1].strip()
+            elif "[+] Line type:" in line:
+                result["line_type"] = line.split(":")[-1].strip()
+        return {"data": result, "raw": r.stdout[:2000]}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== TELESPOTTER =====
+def get_telespotter(phone):
+    try:
+        if not os.path.exists(TELESPOTTER_BIN):
+            return {"error": "telespotter binary not found"}
+        # Убираем + для вызова
+        clean = phone.replace("+", "")
+        r = subprocess.run(
+            [TELESPOTTER_BIN, clean],
+            capture_output=True, text=True, timeout=180, cwd=BASE_DIR
+        )
+        lines = r.stdout.split("\n")
+        found = []
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith("=") and not line.startswith("Telespotter"):
+                found.append(line)
+        return {"found": found[:30], "raw": r.stdout[:3000]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -227,12 +236,9 @@ async def lookup_phone(request: PhoneRequest):
     carrier_info = get_carrier_info(phone)
     gtc_data = get_gtc_data(phone)
     hudson = get_hudsonrock(phone)
-    social = get_social_networks(phone)
-
-    try:
-        phonsint_data = get_phonsint(phone)
-    except Exception as e:
-        phonsint_data = {"error": str(e)}
+    phonsint_data = get_phonsint(phone)
+    phunter_data = get_phunter(phone)
+    telespotter_data = get_telespotter(phone)
 
     result = {
         "success": True,
@@ -241,8 +247,9 @@ async def lookup_phone(request: PhoneRequest):
         "carrier": carrier_info,
         "getcontact": gtc_data,
         "hudsonrock": hudson,
-        "social": social,
-        "phonsint": phonsint_data
+        "phonsint": phonsint_data,
+        "phunter": phunter_data,
+        "telespotter": telespotter_data,
     }
 
     cache_set(phone, result)
@@ -262,14 +269,12 @@ async def email_lookup(request: EmailRequest):
         return cached
 
     holehe_result = get_holehe(email)
-
     result = {
         "success": True,
         "email": email,
         "from_cache": False,
-        "holehe": holehe_result
+        "holehe": holehe_result,
     }
-
     cache_set(cache_key, result)
     return result
 
@@ -277,39 +282,19 @@ async def email_lookup(request: EmailRequest):
 def cache_status():
     return {"size": len(CACHE), "keys": list(CACHE.keys())[:50]}
 
-@app.get("/phonsint-test")
-def phonsint_test():
-    phone = "+79533950127"
-    try:
-        r = subprocess.run(
-            ["phonsint", "-p", phone, "--verbose"],
-            capture_output=True, text=True, timeout=120
-        )
-        return {
-            "returncode": r.returncode,
-            "stdout": r.stdout[:3000],
-            "stderr": r.stderr[:2000],
-        }
-    except Exception as e:
-        return {"error": str(e)}
+@app.get("/telespotter-test")
+def telespotter_test():
+    return get_telespotter("+79533950127")
+
+@app.get("/phunter-test")
+def phunter_test():
+    return get_phunter("+79533950127")
 
 @app.get("/debug")
 def debug():
-    config_dir = os.path.expanduser("~/.config/gtc")
-    creds_path = os.path.join(config_dir, "credentials.json")
-    info = {
+    return {
         "base_dir": BASE_DIR,
-        "b64_exists": os.path.exists(GTC_CRED_B64),
-        "config_exists": os.path.exists(creds_path),
+        "telespotter_bin_exists": os.path.exists(TELESPOTTER_BIN),
+        "phunter_exists": os.path.exists(PHUNTER_SCRIPT),
         "cache_size": len(CACHE),
     }
-    if os.path.exists(creds_path):
-        try:
-            with open(creds_path) as f:
-                data = json.load(f)
-            info["creds_ok"] = True
-            info["creds_accounts"] = list(data.get("credentials", {}).keys())
-        except Exception as e:
-            info["creds_ok"] = False
-            info["creds_error"] = str(e) 
-    return info    
