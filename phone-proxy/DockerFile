@@ -1,13 +1,20 @@
 FROM python:3.11-slim
 
-# Rust + системные зависимости
+# Системные зависимости + Node.js
 RUN apt-get update && apt-get install -y \
     curl \
-    build-essential \
+    gnupg \
     git \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    build-essential \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
     && apt-get clean
 
+# Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
@@ -16,18 +23,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Rust-зависимости для TeleSpotter
-COPY telespotter/Cargo.toml telespotter/Cargo.lock ./telespotter/
-WORKDIR /app/telespotter
-RUN cargo fetch || true
-
-# Копируем исходники TeleSpotter и собираем
-WORKDIR /app
+# Сборка TeleSpotter
 COPY telespotter/ ./telespotter/
 WORKDIR /app/telespotter
 RUN cargo build --release
 
-# Возвращаемся
+# Возвращаемся в корень
 WORKDIR /app
 COPY . .
 
