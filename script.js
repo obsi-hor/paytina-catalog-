@@ -307,17 +307,20 @@ async function searchEmail(email) {
   if (!domain) return `<div class="result-error">Неверный email: ${email}</div>`;
   const [dns, breaches] = await Promise.all([fetchDNS(domain), checkBreaches(email)]);
   let html = `<div class="result-card"><h3>📧 Email: ${email}</h3>`;
+
   html += `<div class="info-block"><h4>Домен</h4><table class="result-table">`;
   if (dns.MX) html += `<tr><td>MX</td><td>${dns.MX.join('<br>')}</td></tr>`;
   if (dns.A) html += `<tr><td>A</td><td>${dns.A.join('<br>')}</td></tr>`;
   html += `</table></div>`;
+
   if (breaches && breaches.breaches && breaches.breaches.length) {
     const list = Array.isArray(breaches.breaches[0]) ? breaches.breaches[0] : breaches.breaches;
-    html += `<div class="info-block"><h4>Утечки (XposedOrNot)</h4><table class="result-table">
+    html += `<div class="info-block"><h4>🔓 Утечки (XposedOrNot)</h4><table class="result-table">
       <tr><td>Найден</td><td>${list.length}</td></tr>
       <tr><td>Список</td><td>${list.join('<br>')}</td></tr>
     </table></div>`;
   }
+
   try {
     const r = await fetch(`${PROXY_URL}/email-lookup`, {
       method: 'POST',
@@ -325,12 +328,57 @@ async function searchEmail(email) {
       body: JSON.stringify({ email: email })
     });
     const res = await r.json();
-    if (res.success && res.holehe && res.holehe.found && res.holehe.found.length) {
-      html += `<div class="info-block"><h4>🔎 Регистрации (Holehe)</h4><div class="subdomain-list">`;
-      res.holehe.found.forEach(s => html += `<span>${s}</span>`);
-      html += `</div></div>`;
+
+    if (res.success) {
+      if (res.holehe && res.holehe.found && res.holehe.found.length) {
+        html += `<div class="info-block"><h4>🔎 Регистрации (Holehe)</h4><div class="subdomain-list">`;
+        res.holehe.found.forEach(s => html += `<span>${s}</span>`);
+        html += `</div></div>`;
+      }
+
+      if (res.hudsonrock && !res.hudsonrock.error) {
+        html += `<div class="info-block"><h4>🦠 Заражения (Hudson Rock)</h4>`;
+        if (res.hudsonrock.compromised) {
+          html += `<div style="padding:8px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #EF4444;">
+            <span style="color:#EF4444;font-size:13px;">⚠ Найден в ${res.hudsonrock.count} инфостилерах</span></div>`;
+        } else {
+          html += `<div style="padding:8px;border-radius:6px;background:rgba(34,197,94,0.1);border-left:3px solid #22C55E;">
+            <span style="color:#22C55E;font-size:13px;">✅ Заражений не найдено</span></div>`;
+        }
+        html += `</div>`;
+      }
+
+      if (res.gravatar && res.gravatar.exists) {
+        html += `<div class="info-block"><h4>🖼 Gravatar</h4>`;
+        html += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <img src="https://www.gravatar.com/avatar/${res.gravatar.hash}?s=80&d=mp" style="width:64px;height:64px;border-radius:50%;border:2px solid #3B82F6;">
+          <div>
+            <div style="color:#E8EAED;font-weight:600;">${res.gravatar.display_name || '—'}</div>
+            ${res.gravatar.about_me ? `<div style="color:#6B7280;font-size:12px;">${res.gravatar.about_me}</div>` : ''}
+          </div>
+        </div>`;
+        if (res.gravatar.accounts && res.gravatar.accounts.length) {
+          html += `<div class="subdomain-list">`;
+          res.gravatar.accounts.forEach(a => html += `<span>${a}</span>`);
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+
+      if (res.emailrep && !res.emailrep.error) {
+        html += `<div class="info-block"><h4>📊 Репутация (EmailRep)</h4><table class="result-table">`;
+        if (res.emailrep.reputation) html += `<tr><td>Репутация</td><td>${res.emailrep.reputation}</td></tr>`;
+        if (res.emailrep.suspicious !== undefined) html += `<tr><td>Подозрительный</td><td>${res.emailrep.suspicious ? '⚠ Да' : '✅ Нет'}</td></tr>`;
+        if (res.emailrep.references !== undefined) html += `<tr><td>Упоминаний</td><td>${res.emailrep.references}</td></tr>`;
+        if (res.emailrep.domain_exists !== undefined) html += `<tr><td>Домен существует</td><td>${res.emailrep.domain_exists ? 'Да' : 'Нет'}</td></tr>`;
+        if (res.emailrep.new_domain !== undefined) html += `<tr><td>Новый домен</td><td>${res.emailrep.new_domain ? '⚠ Да' : '✅ Нет'}</td></tr>`;
+        html += `</table></div>`;
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Email lookup error:', e);
+  }
+
   html += `<div class="result-actions">
     <button class="action-btn" onclick="copyResult('${email}')">Копировать</button>
   </div></div>`;
@@ -352,7 +400,6 @@ async function searchPhone(phone) {
     if (result.from_cache) html += ` <span style="font-size:10px;color:#22C55E;border:1px solid #22C55E;padding:1px 6px;border-radius:4px;margin-left:8px;">из кэша</span>`;
     html += `</h3>`;
 
-    // ОПЕРАТОР
     const c = result.carrier;
     if (c && c.valid) {
       html += `<div class="info-block"><h4>📡 Оператор</h4><table class="result-table">
@@ -364,7 +411,6 @@ async function searchPhone(phone) {
       </table></div>`;
     }
 
-    // GETCONTACT
     const gc = result.getcontact;
     if (gc && !gc.error) {
       html += `<div class="info-block"><h4>👤 Контакты (GetContact)</h4>`;
@@ -383,7 +429,6 @@ async function searchPhone(phone) {
       html += `</div>`;
     }
 
-    // PHONSINT
     const ps = result.phonsint;
     if (ps && ps.found && ps.found.length) {
       const registered = ps.found.filter(x => x.status === 'registered');
@@ -394,17 +439,6 @@ async function searchPhone(phone) {
       }
     }
 
-    // PHUNTER
-    const phunter = result.phunter;
-    if (phunter && phunter.data && Object.keys(phunter.data).length) {
-      html += `<div class="info-block"><h4>🎯 Phunter</h4><table class="result-table">`;
-      if (phunter.data.operator) html += `<tr><td>Оператор</td><td>${phunter.data.operator}</td></tr>`;
-      if (phunter.data.location) html += `<tr><td>Локация</td><td>${phunter.data.location}</td></tr>`;
-      if (phunter.data.line_type) html += `<tr><td>Тип линии</td><td>${phunter.data.line_type}</td></tr>`;
-      html += `</table></div>`;
-    }
-
-    // TELESPOTTER
     const ts = result.telespotter;
     if (ts && ts.found && ts.found.length) {
       html += `<div class="info-block"><h4>📡 TeleSpotter — OSINT-следы</h4><div class="subdomain-list">`;
@@ -412,15 +446,6 @@ async function searchPhone(phone) {
       html += `</div></div>`;
     }
 
-    // СОЦСЕТИ
-    const social = result.social;
-    if (social && social.found && social.found.length) {
-      html += `<div class="info-block"><h4>🌐 Соцсети</h4><div class="subdomain-list">`;
-      social.found.forEach(s => html += `<span>${s}</span>`);
-      html += `</div></div>`;
-    }
-
-    // УТЕЧКИ
     const hr = result.hudsonrock;
     if (hr && !hr.error) {
       html += `<div class="info-block"><h4>🔓 Утечки</h4>`;
@@ -434,7 +459,6 @@ async function searchPhone(phone) {
       html += `</div>`;
     }
 
-    // МЕССЕНДЖЕРЫ
     const cleanPhone = phone.replace(/[^\d]/g, '');
     html += `<div class="messenger-buttons">
       <a class="msg-btn" href="https://t.me/+${cleanPhone}" target="_blank">✈️ Telegram</a>
