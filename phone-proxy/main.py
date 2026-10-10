@@ -5,6 +5,7 @@ import base64
 import shutil
 import subprocess
 import time
+import hashlib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -30,7 +31,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 GTC_SCRIPT = os.path.join(BASE_DIR, "gtc.py")
 GTC_CRED_B64 = os.path.join(BASE_DIR, "credentials.b64")
 TELESPOTTER_BIN = os.path.join(BASE_DIR, "telespotter", "target", "release", "telespotter")
-PHUNTER_SCRIPT = os.path.join(BASE_DIR, "telespotter", "phunter.py")
 
 # ===== КЭШ =====
 CACHE = {}
@@ -61,7 +61,7 @@ def setup_credentials():
         data = json.loads(decoded)
         with open(dst, "w") as f:
             json.dump(data, f, indent=2)
-        print(f"[setup] credentials decoded → {dst}")
+        print(f"[setup] credentials decoded -> {dst}")
         return True
     return False
 
@@ -119,7 +119,7 @@ def get_gtc_data(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ===== HUDSON ROCK =====
+# ===== HUDSON ROCK (PHONE) =====
 def get_hudsonrock(phone):
     try:
         r = requests.get(
@@ -156,46 +156,21 @@ def get_phonsint(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ===== PHUNTER =====
-def get_phunter(phone):
-    try:
-        if not os.path.exists(PHUNTER_SCRIPT):
-            return {"error": "phunter.py not found"}
-        r = subprocess.run(
-            ["python3", PHUNTER_SCRIPT, "-t", phone],
-            capture_output=True, text=True, timeout=120, cwd=os.path.dirname(PHUNTER_SCRIPT)
-        )
-        # Парсим текстовый вывод
-        lines = r.stdout.split("\n")
-        result = {}
-        for line in lines:
-            line = line.strip()
-            if "[+] Operator:" in line:
-                result["operator"] = line.split(":")[-1].strip()
-            elif "[+] Possible location:" in line:
-                result["location"] = line.split(":")[-1].strip()
-            elif "[+] Line type:" in line:
-                result["line_type"] = line.split(":")[-1].strip()
-        return {"data": result, "raw": r.stdout[:2000]}
-    except Exception as e:
-        return {"error": str(e)}
-
 # ===== TELESPOTTER =====
 def get_telespotter(phone):
     try:
         if not os.path.exists(TELESPOTTER_BIN):
             return {"error": "telespotter binary not found"}
-        # Убираем + для вызова
         clean = phone.replace("+", "")
         r = subprocess.run(
-            [TELESPOTTER_BIN, clean],
+            [TELESPOTTER_BIN, clean, "-s", "--no-osint-prompts"],
             capture_output=True, text=True, timeout=180, cwd=BASE_DIR
         )
         lines = r.stdout.split("\n")
         found = []
         for line in lines:
             line = line.strip()
-            if line and not line.startswith("=") and not line.startswith("Telespotter"):
+            if line and not line.startswith("=") and not line.startswith("Telespotter") and "Searching" not in line:
                 found.append(line)
         return {"found": found[:30], "raw": r.stdout[:3000]}
     except Exception as e:
@@ -219,6 +194,71 @@ def get_holehe(email):
     except Exception as e:
         return {"error": str(e)}
 
+# ===== HUDSON ROCK (EMAIL) =====
+def get_hudsonrock_email(email):
+    try:
+        r = requests.post(
+            "https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-login/emails",
+            json={"emails": [email]},
+            timeout=30
+        )
+        if r.status_code != 200:
+            return {"error": f"HTTP {r.status_code}"}
+        data = r.json()
+        stealers = data.get("stealers", [])
+        return {"compromised": len(stealers) > 0, "count": len(stealers), "stealers": stealers[:5]}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== GRAVATAR =====
+def get_gravatar(email):
+    try:
+        email_hash = hashlib.sha256(email.lower().strip().encode()).hexdigest()
+        r = requests.get(
+            f"https://gravatar.com/{email_hash}.json",
+            timeout=10,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        if r.status_code == 200:
+            data = r.json()
+            entry = data.get("entry", [{}])[0]
+            return {
+                "exists": True,
+                "hash": email_hash,
+                "profile_url": f"https://gravatar.com/{email_hash}",
+                "display_name": entry.get("displayName"),
+                "about_me": entry.get("aboutMe"),
+                "accounts": [a.get("shortname") for a in entry.get("accounts", [])]
+            }
+        return {"exists": False, "hash": email_hash}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== EMAILREP =====
+def get_emailrep(email):
+    try:
+        r = requests.get(
+            f"https://emailrep.io/{email}",
+            timeout=15,
+            headers={"User-Agent": "paytina-catalog/1.0"}
+        )
+        if r.status_code != 200:
+            return {"error": f"HTTP {r.status_code}"}
+        data = r.json()
+        details = data.get("details", {})
+        return {
+            "reputation": data.get("reputation"),
+            "suspicious": data.get("suspicious"),
+            "references": data.get("references"),
+            "domain_exists": details.get("domain_exists"),
+            "domain_reputation": details.get("domain_reputation"),
+            "new_domain": details.get("new_domain"),
+            "deliverable": details.get("deliverable"),
+            "profiles": details.get("profiles", [])
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 # ===== ЭНДПОИНТ НОМЕРА =====
 @app.post("/lookup")
 async def lookup_phone(request: PhoneRequest):
@@ -237,7 +277,6 @@ async def lookup_phone(request: PhoneRequest):
     gtc_data = get_gtc_data(phone)
     hudson = get_hudsonrock(phone)
     phonsint_data = get_phonsint(phone)
-    phunter_data = get_phunter(phone)
     telespotter_data = get_telespotter(phone)
 
     result = {
@@ -248,7 +287,6 @@ async def lookup_phone(request: PhoneRequest):
         "getcontact": gtc_data,
         "hudsonrock": hudson,
         "phonsint": phonsint_data,
-        "phunter": phunter_data,
         "telespotter": telespotter_data,
     }
 
@@ -269,12 +307,20 @@ async def email_lookup(request: EmailRequest):
         return cached
 
     holehe_result = get_holehe(email)
+    hudsonrock_result = get_hudsonrock_email(email)
+    gravatar_result = get_gravatar(email)
+    emailrep_result = get_emailrep(email)
+
     result = {
         "success": True,
         "email": email,
         "from_cache": False,
         "holehe": holehe_result,
+        "hudsonrock": hudsonrock_result,
+        "gravatar": gravatar_result,
+        "emailrep": emailrep_result
     }
+
     cache_set(cache_key, result)
     return result
 
@@ -286,15 +332,10 @@ def cache_status():
 def telespotter_test():
     return get_telespotter("+79533950127")
 
-@app.get("/phunter-test")
-def phunter_test():
-    return get_phunter("+79533950127")
-
 @app.get("/debug")
 def debug():
     return {
         "base_dir": BASE_DIR,
         "telespotter_bin_exists": os.path.exists(TELESPOTTER_BIN),
-        "phunter_exists": os.path.exists(PHUNTER_SCRIPT),
-        "cache_size": len(CACHE),
+        "cache_size": len(CACHE)
     }
